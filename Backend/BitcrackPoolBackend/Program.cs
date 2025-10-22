@@ -513,6 +513,7 @@ static ClientApplicationType ParseApplicationType(string? type)
         "bitcrack" => ClientApplicationType.Bitcrack,
         "vanitysearch" => ClientApplicationType.VanitySearch,
         "custom" => ClientApplicationType.Custom,
+        "cpu" => ClientApplicationType.VanitySearch,
         _ => ClientApplicationType.Unknown
     };
 }
