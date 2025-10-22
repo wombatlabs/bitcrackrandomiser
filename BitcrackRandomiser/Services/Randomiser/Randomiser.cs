@@ -2,7 +2,9 @@
 using BitcrackRandomiser.Models;
 using BitcrackRandomiser.Services.PoolService;
 using System.Diagnostics;
+using System.Globalization;
 using System.Reflection;
+using System.Threading;
 
 namespace BitcrackRandomiser.Services.Randomiser
 {
@@ -32,6 +34,17 @@ namespace BitcrackRandomiser.Services.Randomiser
         // Scan completed
         public static bool[] scanCompleted = new bool[16];
 
+        // Backend pool client instance
+        private static BackendPoolClient? backendPoolClient;
+
+        // Backend range assignments per GPU
+        private static BackendPoolClient.BackendRangeAssignment?[] backendRanges = new BackendPoolClient.BackendRangeAssignment?[16];
+
+        // Backend runtime telemetry
+        private static double[] backendSpeeds = new double[16];
+        private static double[] backendProgress = new double[16];
+        private static DateTime[] backendLastReportUtc = new DateTime[16];
+
         // Check if app started
         public static bool appStarted = false;
 
@@ -55,31 +68,91 @@ namespace BitcrackRandomiser.Services.Randomiser
                 return Task.FromResult(0);
             }
 
-            // Get random HEX value from API
-            var hexResult = MainService.GetHex(settings, gpuIndex).Result;
-            
+            BackendPoolClient.BackendRangeAssignment? backendRange = null;
+            bool useBackend = settings.IsBackendConfigured;
+            string targetAddress;
+            List<string> proofValues;
+            string randomHex;
+            string workloadStart;
+            string workloadEnd;
+            string rangeIdentifier;
 
-            // Cannot get HEX value
-            if (!hexResult.isSuccess && hexResult.error is null)
+            if (useBackend)
             {
-                Helper.WriteLine("Database connection error. Please wait...", MessageType.error);
-                Thread.Sleep(5000);
-                return Scan(settings, gpuIndex);
-            }
+                backendPoolClient ??= new BackendPoolClient(settings);
+                backendRange = backendPoolClient.ClaimRangeAsync(gpuIndex, CancellationToken.None).Result;
 
-            // Check for errors
-            if (hexResult.error is not null)
+                if (backendRange is null)
+                {
+                    Helper.WriteLine("No backend ranges available. Retrying in 30 seconds...", MessageType.info, true);
+                    Thread.Sleep(TimeSpan.FromSeconds(30));
+                    return Scan(settings, gpuIndex);
+                }
+
+                string backendTarget = !string.IsNullOrWhiteSpace(backendRange.TargetAddress)
+                    ? backendRange.TargetAddress.Trim()
+                    : settings.BackendTargetAddress?.Trim() ?? string.Empty;
+
+                if (string.IsNullOrWhiteSpace(backendTarget))
+                {
+                    Helper.WriteLine("Backend did not provide a target address. Set 'backend_target_address' as a fallback.", MessageType.error, true);
+                    return Task.FromResult(0);
+                }
+
+                targetAddress = backendTarget;
+                proofValues = new List<string>();
+                randomHex = backendRange.PrefixStart;
+                workloadStart = backendRange.WorkloadStartSuffix;
+                workloadEnd = backendRange.WorkloadEndSuffix;
+                rangeIdentifier = $"{backendRange.Puzzle}:{backendRange.PrefixStart}-{backendRange.PrefixEnd}";
+                backendRanges[gpuIndex] = backendRange;
+                backendProgress[gpuIndex] = 0;
+                backendSpeeds[gpuIndex] = 0;
+                backendLastReportUtc[gpuIndex] = DateTime.MinValue;
+
+                backendPoolClient.ReportProgressAsync(
+                    gpuIndex,
+                    backendRange.RangeId,
+                    progressPercent: 0,
+                    markComplete: false,
+                    speedKeysPerSecond: null,
+                    cardsConnected: GetWorkerGpuCount(settings),
+                    cancellationToken: CancellationToken.None)
+                    .GetAwaiter()
+                    .GetResult();
+                backendLastReportUtc[gpuIndex] = DateTime.UtcNow;
+
+                Helper.WriteLine($"Assigned backend range [Puzzle {backendRange.Puzzle}] {rangeIdentifier}", MessageType.info, gpuIndex: gpuIndex);
+            }
+            else
             {
-                Helper.WriteLine(hexResult.error.ReplaceLineEndings(), MessageType.error);
-                return Task.FromResult(0);
+                // Get random HEX value from API
+                var hexResult = MainService.GetHex(settings, gpuIndex).Result;
+
+                // Cannot get HEX value
+                if (!hexResult.isSuccess && hexResult.error is null)
+                {
+                    Helper.WriteLine("Database connection error. Please wait...", MessageType.error);
+                    Thread.Sleep(5000);
+                    return Scan(settings, gpuIndex);
+                }
+
+                // Check for errors
+                if (hexResult.error is not null)
+                {
+                    Helper.WriteLine(hexResult.error.ReplaceLineEndings(), MessageType.error);
+                    return Task.FromResult(0);
+                }
+
+                targetAddress = hexResult.data?.TargetAddress!;
+
+                // Parse hex result
+                randomHex = hexResult.data.Hex;
+                proofValues = hexResult.data.ProofOfWorkAddresses;
+                workloadStart = hexResult.data.WorkloadStart;
+                workloadEnd = hexResult.data.WorkloadEnd;
+                rangeIdentifier = randomHex;
             }
-
-            string targetAddress = hexResult.data?.TargetAddress!;
-            
-
-            // Parse hex result
-            string randomHex = hexResult.data.Hex;
-            var proofValues = hexResult.data.ProofOfWorkAddresses;
 
             // Write info
             if (!appStarted)
@@ -92,7 +165,10 @@ namespace BitcrackRandomiser.Services.Randomiser
                 Helper.WriteLine(string.Format("Custom range: {0}", $"[{settings.CustomRange}]", MessageType.info));
                 Helper.WriteLine(string.Format("API share: {0} / Telegram share: {1}", settings.IsApiShare, settings.TelegramShare), MessageType.info);
                 Helper.WriteLine(string.Format("Untrusted computer: {0}", settings.UntrustedComputer), MessageType.info);
-                Helper.WriteLine(string.Format("Progress: {0}", "Visit the [btcpuzzle.info] for statistics."));
+                if (useBackend)
+                    Helper.WriteLine(string.Format("Progress: {0}", "Using custom backend pool."));
+                else
+                    Helper.WriteLine(string.Format("Progress: {0}", "Visit the [btcpuzzle.info] for statistics."));
                 Helper.WriteLine(string.Format("Worker name: {0}", settings.WorkerName));
                 Helper.WriteLine("", MessageType.seperator);
 
@@ -101,12 +177,18 @@ namespace BitcrackRandomiser.Services.Randomiser
 
             // App arguments
             string appArguments = "";
+            string keyspaceArgument = useBackend
+                ? $"{backendRange!.RangeStart}:{backendRange.RangeEnd}"
+                : $"{randomHex}{workloadStart}:+{workloadEnd}";
+
             if (settings.AppType == AppType.bitcrack)
             {
                 var proofAddressList = string.Join(' ', proofValues);
                 var currentGpuIndex = settings.GPUCount > 1 ? gpuIndex : settings.GPUIndex;
-
-                appArguments = $"{settings.AppArgs} --keyspace {randomHex}{hexResult.data.WorkloadStart}:+{hexResult.data.WorkloadEnd} {targetAddress} {proofAddressList} -d {currentGpuIndex}";
+                var baseArguments = $"{settings.AppArgs} --keyspace {keyspaceArgument} {targetAddress}".Trim();
+                if (!string.IsNullOrWhiteSpace(proofAddressList))
+                    baseArguments = $"{baseArguments} {proofAddressList}";
+                appArguments = $"{baseArguments} -d {currentGpuIndex}";
             }
             else if (settings.AppType == AppType.vanitysearch ^ settings.AppType == AppType.cpu)
             {
@@ -126,10 +208,10 @@ namespace BitcrackRandomiser.Services.Randomiser
                                 : settings.GPUSeperatedRange
                                 ? $"-gpuId {gpuIndex}"
                                 : $"-gpuId {string.Join(",", Enumerable.Range(0, settings.GPUCount).ToArray())}";
-                            appArguments = $"{settings.AppArgs} -t 0 -gpu {settedGpus} -i vanitysearch_gpu{gpuIndex}.txt --keyspace {randomHex}{hexResult.data.WorkloadStart}:+{hexResult.data.WorkloadEnd}";
+                            appArguments = $"{settings.AppArgs} -t 0 -gpu {settedGpus} -i vanitysearch_gpu{gpuIndex}.txt --keyspace {keyspaceArgument}";
                             break;
                         case AppType.cpu:
-                            appArguments = $"{settings.AppArgs} -i vanitysearch_gpu{gpuIndex}.txt --keyspace {randomHex}{hexResult.data.WorkloadStart}:+{hexResult.data.WorkloadEnd}";
+                            appArguments = $"{settings.AppArgs} -i vanitysearch_gpu{gpuIndex}.txt --keyspace {keyspaceArgument}";
                             break;
                     }
                 }
@@ -153,8 +235,8 @@ namespace BitcrackRandomiser.Services.Randomiser
             };
 
             // Output from BitCrack
-            process.ErrorDataReceived += (o, s) => OutputReceivedHandler(o, s, targetAddress, proofValues, randomHex, settings, process, gpuIndex);
-            process.OutputDataReceived += (o, s) => OutputReceivedHandler(o, s, targetAddress, proofValues, randomHex, settings, process, gpuIndex);
+            process.ErrorDataReceived += (o, s) => OutputReceivedHandler(o, s, targetAddress, proofValues, rangeIdentifier, settings, process, gpuIndex);
+            process.OutputDataReceived += (o, s) => OutputReceivedHandler(o, s, targetAddress, proofValues, rangeIdentifier, settings, process, gpuIndex);
 
             // App exited
             process.Exited += (sender, args) =>
@@ -200,23 +282,83 @@ namespace BitcrackRandomiser.Services.Randomiser
                 ShareService.ShareService.Send(ResultType.keyFound, settings, privateKey);
 
                 // Not on untrusted computer
-                if (!settings.UntrustedComputer)
+                if (!settings.UntrustedComputer && !settings.IsBackendConfigured)
                 {
                     Console.WriteLine(Environment.NewLine);
                     Helper.WriteLine(privateKey, MessageType.success);
                     Helper.SaveFile(privateKey, targetAddress);
                 }
 
-                Helper.WriteLine("Congratulations. Key found. Please check your folder.", MessageType.success);
-                Helper.WriteLine("You can donate me; 1eosEvvesKV6C2ka4RDNZhmepm1TLFBtw", MessageType.success);
+                if (!settings.IsBackendConfigured)
+                {
+                    Helper.WriteLine("Congratulations. Key found. Please check your folder.", MessageType.success);
+                    Helper.WriteLine("You can donate me; 1eosEvvesKV6C2ka4RDNZhmepm1TLFBtw", MessageType.success);
+                }
+
+                if (settings.IsBackendConfigured)
+                {
+                    var backendRange = backendRanges[gpuIndex];
+                    if (backendRange is not null)
+                    {
+                        backendPoolClient?
+                            .ReportProgressAsync(
+                                gpuIndex,
+                                backendRange.RangeId,
+                                progressPercent: 100,
+                                markComplete: true,
+                                speedKeysPerSecond: backendSpeeds[gpuIndex],
+                                cardsConnected: GetWorkerGpuCount(settings),
+                                cancellationToken: CancellationToken.None)
+                            .GetAwaiter()
+                            .GetResult();
+
+                        backendPoolClient?
+                            .SubmitKeyFoundAsync(
+                                gpuIndex,
+                                backendRange.RangeId,
+                                backendRange.Puzzle,
+                                privateKey,
+                                CancellationToken.None)
+                            .GetAwaiter()
+                            .GetResult();
+
+                        backendRanges[gpuIndex] = null;
+                        backendProgress[gpuIndex] = 0;
+                        backendSpeeds[gpuIndex] = 0;
+                    }
+                }
             }
             else
             {
                 // Send notification each key scanned
                 ShareService.ShareService.Send(ResultType.rangeScanned, settings, hex);
 
-                // Flag HEX as used
-                Flagger.Flag(settings, hex, gpuIndex, proofKeys[gpuIndex], gpuNames[gpuIndex]);
+                // Flag HEX as used / report to backend
+                if (settings.IsBackendConfigured)
+                {
+                    var backendRange = backendRanges[gpuIndex];
+                    if (backendRange is not null)
+                    {
+                        backendPoolClient?
+                            .ReportProgressAsync(
+                                gpuIndex,
+                                backendRange.RangeId,
+                                progressPercent: 100,
+                                markComplete: true,
+                                speedKeysPerSecond: backendSpeeds[gpuIndex],
+                                cardsConnected: GetWorkerGpuCount(settings),
+                                cancellationToken: CancellationToken.None)
+                            .GetAwaiter()
+                            .GetResult();
+                        backendRanges[gpuIndex] = null;
+                        backendProgress[gpuIndex] = 0;
+                        backendSpeeds[gpuIndex] = 0;
+                    }
+                }
+                else
+                {
+                    Flagger.Flag(settings, hex, gpuIndex, proofKeys[gpuIndex], gpuNames[gpuIndex]);
+                }
 
                 // Wait and restart
                 proofKeys[gpuIndex] = "";
@@ -287,6 +429,87 @@ namespace BitcrackRandomiser.Services.Randomiser
             }
             else if (status.OutputType == OutputType.gpuModel)
                 gpuNames[gpuIndex] = status!.Content!;
+
+            if (settings.IsBackendConfigured && (status.SpeedKeysPerSecond.HasValue || status.ProgressPercent.HasValue))
+            {
+                UpdateBackendTelemetry(settings, gpuIndex, status.ProgressPercent, status.SpeedKeysPerSecond);
+            }
+        }
+
+        public static void DisposeBackend()
+        {
+            backendPoolClient?.Dispose();
+            backendPoolClient = null;
+        }
+
+        private static void UpdateBackendTelemetry(Setting settings, int gpuIndex, double? progress, double? speed)
+        {
+            if (!settings.IsBackendConfigured)
+                return;
+
+            var backendRange = backendRanges[gpuIndex];
+            if (backendRange is null)
+                return;
+
+            bool hasChanges = false;
+
+            if (progress.HasValue)
+            {
+                backendProgress[gpuIndex] = Math.Clamp(progress.Value, 0, 100);
+                backendRange.ProgressPercent = backendProgress[gpuIndex];
+                hasChanges = true;
+            }
+
+            if (speed.HasValue)
+            {
+                backendSpeeds[gpuIndex] = Math.Max(0, speed.Value);
+                hasChanges = true;
+            }
+
+            var now = DateTime.UtcNow;
+            if (!hasChanges && (now - backendLastReportUtc[gpuIndex]) < TimeSpan.FromSeconds(15))
+                return;
+
+            backendPoolClient?
+                .ReportProgressAsync(
+                    gpuIndex,
+                    backendRange.RangeId,
+                    progressPercent: backendProgress[gpuIndex],
+                    markComplete: false,
+                    speedKeysPerSecond: backendSpeeds[gpuIndex],
+                    cardsConnected: GetWorkerGpuCount(settings),
+                    cancellationToken: CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+
+            backendLastReportUtc[gpuIndex] = now;
+
+            string summary = $"GPU{gpuIndex} Range {backendRange.PrefixStart}-{backendRange.PrefixEnd} | Progress {backendProgress[gpuIndex]:0.00}% | Speed {FormatSpeed(backendSpeeds[gpuIndex])}";
+            Helper.WriteLine(summary, MessageType.externalApp, gpuIndex: gpuIndex);
+        }
+
+        private static string FormatSpeed(double value)
+        {
+            if (value <= 0)
+                return "0";
+
+            string[] units = new[] { "keys/s", "K keys/s", "M keys/s", "G keys/s", "T keys/s", "P keys/s" };
+            int unitIndex = 0;
+            double display = value;
+            while (display >= 1000 && unitIndex < units.Length - 1)
+            {
+                display /= 1000;
+                unitIndex++;
+            }
+
+            return string.Format(CultureInfo.InvariantCulture, "{0:0.00} {1}", display, units[unitIndex]);
+        }
+
+        private static int GetWorkerGpuCount(Setting settings)
+        {
+            bool single = (settings.AppType == AppType.bitcrack && settings.GPUCount > 1) ||
+                          (settings.AppType == AppType.vanitysearch && settings.GPUSeperatedRange);
+            return single ? 1 : Math.Clamp(settings.GPUCount, 1, 32);
         }
     }
 }

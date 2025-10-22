@@ -137,6 +137,67 @@ namespace BitcrackRandomiser.Models
         public bool CloudSearchMode { get; set; }
 
         /// <summary>
+        /// Enable integration with custom backend pool.
+        /// </summary>
+        public bool BackendEnabled { get; set; }
+
+        /// <summary>
+        /// Backend base URL (http://server:5000/).
+        /// </summary>
+        public string? BackendBaseUrl { get; set; }
+
+        /// <summary>
+        /// Backend user name shown on dashboard.
+        /// </summary>
+        public string? BackendUser { get; set; }
+
+        /// <summary>
+        /// Optional override for the puzzle target address when backend does not supply it.
+        /// </summary>
+        public string? BackendTargetAddress { get; set; }
+
+        /// <summary>
+        /// Optional list of pre-issued backend client identifiers (comma separated).
+        /// </summary>
+        public string? BackendClientIdsRaw { get; set; }
+
+        /// <summary>
+        /// Optional list of pre-issued backend client tokens (comma separated).
+        /// </summary>
+        public string? BackendClientTokensRaw { get; set; }
+
+        /// <summary>
+        /// Parsed backend client ids list.
+        /// </summary>
+        private IReadOnlyList<string> BackendClientIds => SplitConfigurationList(BackendClientIdsRaw);
+
+        /// <summary>
+        /// Parsed backend client tokens list.
+        /// </summary>
+        private IReadOnlyList<string> BackendClientTokens => SplitConfigurationList(BackendClientTokensRaw);
+
+        /// <summary>
+        /// Resolve client id for GPU index.
+        /// </summary>
+        public string? GetBackendClientId(int gpuIndex)
+        {
+            return gpuIndex < BackendClientIds.Count ? BackendClientIds[gpuIndex] : null;
+        }
+
+        /// <summary>
+        /// Resolve client token for GPU index.
+        /// </summary>
+        public string? GetBackendClientToken(int gpuIndex)
+        {
+            return gpuIndex < BackendClientTokens.Count ? BackendClientTokens[gpuIndex] : null;
+        }
+
+        /// <summary>
+        /// Returns true when backend integration is configured.
+        /// </summary>
+        public bool IsBackendConfigured => BackendEnabled && !string.IsNullOrWhiteSpace(BackendBaseUrl);
+
+        /// <summary>
         /// Hashed settings for untrusted computers.
         /// When the any setting changes, the hash value also changes.
         /// </summary>
@@ -146,9 +207,18 @@ namespace BitcrackRandomiser.Models
             {
                 string buildId = Assembly.GetExecutingAssembly().ManifestModule.ModuleVersionId.ToString();
                 string data = $"{TargetPuzzle}-{AppPath}-{AppArgs}-{WorkerName}-{ApiShare}-{TelegramShare}-" +
-                    $"{TelegramChatId}-{CustomRange}-{UntrustedComputer}-{ForceContinue}-{UserToken}-{buildId}";
+                    $"{TelegramChatId}-{CustomRange}-{UntrustedComputer}-{ForceContinue}-{UserToken}-{BackendEnabled}-{BackendBaseUrl}-{BackendUser}-{BackendTargetAddress}-{BackendClientIdsRaw}-{BackendClientTokensRaw}-{buildId}";
                 return Helper.StringParser(value: Helper.SHA256Hash(data), length: 5, addDots: false);
             }
+        }
+
+        private static IReadOnlyList<string> SplitConfigurationList(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return Array.Empty<string>();
+
+            var normalised = raw.Replace(';', ',');
+            return normalised.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         }
     }
 }

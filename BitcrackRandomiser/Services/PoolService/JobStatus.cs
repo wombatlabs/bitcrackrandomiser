@@ -1,6 +1,8 @@
 ﻿using BitcrackRandomiser.Enums;
 using BitcrackRandomiser.Models;
 using System.Diagnostics;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace BitcrackRandomiser.Services.PoolService
 {
@@ -64,6 +66,14 @@ namespace BitcrackRandomiser.Services.PoolService
                     else
                     {
                         string data = e.Data.Trim();
+                        var result = new Result { OutputType = OutputType.running };
+
+                        if (TryExtractSpeed(data, out double speed))
+                            result.SpeedKeysPerSecond = speed;
+
+                        if (TryExtractProgress(data, out double progress))
+                            result.ProgressPercent = progress;
+
                         if (data.Length > 0)
                         {
                             string message = string.Format("{0} [GPU={1}] [HEX={2}]", data.Length > 1 ? data : "...", gpuIndex, hex);
@@ -82,7 +92,7 @@ namespace BitcrackRandomiser.Services.PoolService
                             else
                                 Console.Write(loadingMessage + new string(' ', consoleWidth - loadingMessage.Length));
                         }
-                        return new Result { OutputType = OutputType.running };
+                        return result;
                     }
                 }
                 else if (appType == AppType.vanitysearch || appType == AppType.cpu)
@@ -126,6 +136,14 @@ namespace BitcrackRandomiser.Services.PoolService
                     else
                     {
                         string data = e.Data.Trim();
+                        var result = new Result { OutputType = OutputType.running };
+
+                        if (TryExtractSpeed(data, out double speed))
+                            result.SpeedKeysPerSecond = speed;
+
+                        if (TryExtractProgress(data, out double progress))
+                            result.ProgressPercent = progress;
+
                         if (data.Length > 0)
                         {
                             string message = string.Format("{0} [HEX={2}]", data.Length > 1 ? data : "...", gpuIndex, hex);
@@ -145,12 +163,68 @@ namespace BitcrackRandomiser.Services.PoolService
                             else
                                 Console.Write(loadingMessage + new string(' ', consoleWidth - loadingMessage.Length));
                         }
-                        return new Result { OutputType = OutputType.running };
+                        return result;
                     }
                 }
             }
 
             return new Result { OutputType = OutputType.unknown };
+        }
+
+        private static bool TryExtractSpeed(string data, out double speed)
+        {
+            speed = 0;
+            if (string.IsNullOrWhiteSpace(data))
+                return false;
+
+            var match = Regex.Match(data, "([0-9]+(?:\\.[0-9]+)?)\\s*([KMGTP]?)(?:keys|key|K)(?:/|\\s)*/s", RegexOptions.IgnoreCase);
+            if (!match.Success)
+                match = Regex.Match(data, "([0-9]+(?:\\.[0-9]+)?)\\s*([KMGTP]?)(?:h?ash|key)s?/s", RegexOptions.IgnoreCase);
+
+            if (!match.Success)
+                return false;
+
+            if (!double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double value))
+                return false;
+
+            string unit = match.Groups[2].Value.ToUpperInvariant();
+            double multiplier = unit switch
+            {
+                "K" => 1_000d,
+                "M" => 1_000_000d,
+                "G" => 1_000_000_000d,
+                "T" => 1_000_000_000_000d,
+                "P" => 1_000_000_000_000_000d,
+                _ => 1d
+            };
+
+            speed = value * multiplier;
+            return true;
+        }
+
+        private static bool TryExtractProgress(string data, out double progress)
+        {
+            progress = 0;
+            if (string.IsNullOrWhiteSpace(data))
+                return false;
+
+            if (!data.Contains("%", StringComparison.Ordinal) ||
+                (!data.Contains("progress", StringComparison.OrdinalIgnoreCase) &&
+                 !data.Contains("scanned", StringComparison.OrdinalIgnoreCase) &&
+                 !data.Contains("completed", StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+
+            var match = Regex.Match(data, "([0-9]+(?:\\.[0-9]+)?)%", RegexOptions.IgnoreCase);
+            if (!match.Success)
+                return false;
+
+            if (!double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double percent))
+                return false;
+
+            progress = Math.Clamp(percent, 0, 100);
+            return true;
         }
     }
 }

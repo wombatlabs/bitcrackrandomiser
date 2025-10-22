@@ -37,11 +37,13 @@ namespace BitcrackRandomiser
             {
                 Logger.LogError(null, $"App [{appSettings.AppType}] exited.");
                 ShareService.Send(ResultType.workerExited, appSettings);
+                Randomiser.DisposeBackend();
             };
             Thread.GetDomain().UnhandledException += (s, e) =>
             {
                 Logger.LogError((Exception)e.ExceptionObject, $"App [{appSettings.AppType}] occured unhandled exception.");
                 ShareService.Send(ResultType.workerExited, appSettings);
+                Randomiser.DisposeBackend();
             };
 
             // Send worker start message to telegram or api if active

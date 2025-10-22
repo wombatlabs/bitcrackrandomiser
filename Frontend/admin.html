@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BTC Multi Puzzle Admin</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="page-header">
+        <div>
+            <h1>Pool Administration</h1>
+            <p class="subtitle">Configure puzzles and ranges</p>
+        </div>
+        <div class="last-updated">
+            <label for="admin-key">Admin Key</label>
+            <input id="admin-key" type="password" placeholder="X-Admin-Key" />
+            <button id="save-key">Save</button>
+        </div>
+    </header>
+
+    <main>
+        <section class="content-section">
+            <div class="section-header">
+                <h2>Puzzle Definitions</h2>
+                <button id="refresh-puzzles" class="badge">Refresh</button>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Name</th>
+                            <th>Min Prefix</th>
+                            <th>Max Prefix</th>
+                            <th>Chunk Size</th>
+                            <th>Weight</th>
+                            <th>Enabled</th>
+                            <th>Random</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-puzzle-table">
+                        <tr><td colspan="9" class="empty">No data</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <div class="section-header">
+                <h2>Create / Update Puzzle</h2>
+            </div>
+            <form id="puzzle-form" class="admin-form">
+                <div class="form-grid">
+                    <label>Code<input name="code" required /></label>
+                    <label>Name<input name="displayName" required /></label>
+                    <label>Target Address<input name="targetAddress" required /></label>
+                    <label>Min Prefix<input name="minPrefixHex" required /></label>
+                    <label>Max Prefix<input name="maxPrefixHex" required /></label>
+                    <label>Chunk Size<input name="chunkSize" type="number" min="1" value="4" /></label>
+                    <label>Prefix Length<input name="prefixLength" type="number" min="1" /></label>
+                    <label>Weight<input name="weight" type="number" min="0.01" step="0.01" value="1" /></label>
+                    <label>Workload Start<input name="workloadStartSuffix" /></label>
+                    <label>Workload End<input name="workloadEndSuffix" /></label>
+                    <label>Notes<textarea name="notes"></textarea></label>
+                    <label class="checkbox"><input type="checkbox" name="enabled" checked /> Enabled</label>
+                    <label class="checkbox"><input type="checkbox" name="randomized" checked /> Randomized</label>
+                </div>
+                <div class="form-actions">
+                    <button type="submit">Save Puzzle</button>
+                    <button type="reset" class="secondary">Reset</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="content-section">
+            <div class="section-header">
+                <h2>Status</h2>
+            </div>
+            <div id="admin-status" class="status-message hidden"></div>
+        </section>
+    </main>
+
+    <script src="admin.js"></script>
+</body>
+</html>
+

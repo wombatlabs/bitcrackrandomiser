@@ -121,6 +121,25 @@ namespace BitcrackRandomiser.Services.SettingsService
                             _ = bool.TryParse(value, out bool _cs);
                             settings.CloudSearchMode = _cs;
                             break;
+                        case "backend_enabled":
+                            _ = bool.TryParse(value, out bool _be);
+                            settings.BackendEnabled = _be;
+                            break;
+                        case "backend_base_url":
+                            settings.BackendBaseUrl = value;
+                            break;
+                        case "backend_user":
+                            settings.BackendUser = value;
+                            break;
+                        case "backend_client_ids":
+                            settings.BackendClientIdsRaw = value;
+                            break;
+                        case "backend_client_tokens":
+                            settings.BackendClientTokensRaw = value;
+                            break;
+                        case "backend_target_address":
+                            settings.BackendTargetAddress = value;
+                            break;
                     }
                 }
             }
@@ -255,7 +274,14 @@ namespace BitcrackRandomiser.Services.SettingsService
                     "telegram_share_eachkey=" + consoleSettings.TelegramShareEachKey + Environment.NewLine +
                     "untrusted_computer=" + consoleSettings.UntrustedComputer + Environment.NewLine +
                     "test_mode=" + consoleSettings.TestMode + Environment.NewLine +
-                    "force_continue=" + consoleSettings.ForceContinue;
+                    "force_continue=" + consoleSettings.ForceContinue + Environment.NewLine +
+                    "cloud_search_mode=" + consoleSettings.CloudSearchMode + Environment.NewLine +
+                    "backend_enabled=" + consoleSettings.BackendEnabled + Environment.NewLine +
+                    "backend_base_url=" + (consoleSettings.BackendBaseUrl ?? "") + Environment.NewLine +
+                    "backend_user=" + (consoleSettings.BackendUser ?? "") + Environment.NewLine +
+                    "backend_client_ids=" + (consoleSettings.BackendClientIdsRaw ?? "") + Environment.NewLine +
+                    "backend_client_tokens=" + (consoleSettings.BackendClientTokensRaw ?? "") + Environment.NewLine +
+                    "backend_target_address=" + (consoleSettings.BackendTargetAddress ?? "");
                 string appPath = AppDomain.CurrentDomain.BaseDirectory;
                 using (StreamWriter outputFile = new StreamWriter(Path.Combine(appPath, "settings.txt")))
                 {

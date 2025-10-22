@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BTC Puzzle Pool Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="page-header">
+        <div>
+            <h1>BTC Multi Puzzle Pool</h1>
+            <p class="subtitle">Live worker and range statistics</p>
+        </div>
+        <div class="last-updated">
+            <span>Last updated:</span>
+            <strong id="last-updated">Never</strong>
+        </div>
+    </header>
+
+    <main>
+        <section class="summary-cards" id="summary-cards">
+            <!-- populated via JavaScript -->
+        </section>
+
+        <section class="content-section">
+            <div class="section-header">
+                <h2>Workers</h2>
+                <span id="worker-count" class="badge">0 online</span>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Worker</th>
+                            <th>Type</th>
+                            <th>Puzzle</th>
+                            <th>Cards</th>
+                            <th>Speed</th>
+                            <th>Current Range</th>
+                            <th>Progress</th>
+                            <th>Last Seen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="worker-table-body">
+                        <tr><td colspan="9" class="empty">No worker data</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <div class="section-header">
+                <h2>Puzzles</h2>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Name</th>
+                            <th>Progress</th>
+                            <th>Ranges</th>
+                            <th>Keys Found</th>
+                        </tr>
+                    </thead>
+                    <tbody id="puzzle-table-body">
+                        <tr><td colspan="5" class="empty">No puzzle data</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <div class="section-header">
+                <h2>Active Ranges</h2>
+                <span id="range-count" class="badge">0 in progress</span>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Prefix Start</th>
+                            <th>Prefix End</th>
+                            <th>Puzzle</th>
+                            <th>Progress</th>
+                            <th>Assigned To</th>
+                            <th>Last Update (UTC)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="range-table-body">
+                        <tr><td colspan="6" class="empty">No active ranges</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <div class="section-header">
+                <h2>Status</h2>
+            </div>
+            <div id="status-message" class="status-message hidden"></div>
+        </section>
+    </main>
+
+    <footer class="page-footer">
+        <p>Serving <strong>btcmultipuzzle.com</strong>. Backend API endpoint: <code>/api/stats/overview</code></p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

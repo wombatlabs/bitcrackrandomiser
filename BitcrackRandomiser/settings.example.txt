@@ -61,3 +61,21 @@ force_continue=false
 
 // App is working on any cloud service [true,false]
 cloud_search_mode=false
+
+// Enable custom backend pool integration [true,false] (keys stay on backend when true)
+backend_enabled=false
+
+// Backend base URL (example: http://localhost:5000)
+backend_base_url=
+
+// Display name shown on the backend stats (if empty worker name is used)
+backend_user=
+
+// Comma separated backend client ids (optional, leave empty to auto register)
+backend_client_ids=
+
+// Comma separated backend client tokens (optional, leave empty to auto register)
+backend_client_tokens=
+
+// Puzzle target address (required when backend does not provide one)
+backend_target_address=
