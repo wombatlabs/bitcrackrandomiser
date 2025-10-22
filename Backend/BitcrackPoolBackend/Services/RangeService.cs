@@ -204,6 +204,12 @@ namespace BitcrackPoolBackend.Services
         {
             var (prefixStart, prefixEnd, actualChunk) = candidate;
 
+            var exists = await db.RangeAssignments
+                .AnyAsync(r => r.PuzzleId == puzzle.Id && r.PrefixStart == prefixStart, cancellationToken)
+                .ConfigureAwait(false);
+            if (exists)
+                return null;
+
             var range = new RangeAssignment
             {
                 Id = Guid.NewGuid(),
@@ -241,6 +247,7 @@ namespace BitcrackPoolBackend.Services
                 client.CurrentRangeId = null;
                 client.Status = ClientStatus.Idle;
                 client.LastSeenUtc = timestampUtc;
+                await db.Entry(client).ReloadAsync(cancellationToken).ConfigureAwait(false);
                 return null;
             }
         }
