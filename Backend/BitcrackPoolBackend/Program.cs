@@ -92,6 +92,8 @@ app.MapPost("/api/clients/register", async (
     };
 
     db.Clients.Add(client);
+    await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
     var assignedRange = await rangeService.AssignNextRangeAsync(db, client, cancellationToken).ConfigureAwait(false);
 
     if (assignedRange is not null)
