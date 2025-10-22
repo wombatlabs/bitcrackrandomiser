@@ -114,14 +114,20 @@ namespace BitcrackRandomiser.Services
         /// Save address for vanity
         /// </summary>
         /// <param name="lines"></param>
-        public static bool SaveAddressVanity(List<string> lines, int gpuIndex = 0)
+        public static string? SaveAddressVanity(List<string> lines, int gpuIndex = 0)
         {
-            string appPath = string.Format("{0}", AppDomain.CurrentDomain.BaseDirectory);
-            using StreamWriter outputFile = new(Path.Combine(appPath, $"vanitysearch_gpu{gpuIndex}.txt"));
-            foreach (string line in lines)
-                outputFile.WriteLine(line);
-            outputFile.Close();
-            return true;
+            try
+            {
+                string appPath = AppDomain.CurrentDomain.BaseDirectory;
+                string filePath = Path.Combine(appPath, $"vanitysearch_gpu{gpuIndex}.txt");
+                File.WriteAllLines(filePath, lines);
+                return filePath;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to save vanity address file.");
+                return null;
+            }
         }
 
         /// <summary>

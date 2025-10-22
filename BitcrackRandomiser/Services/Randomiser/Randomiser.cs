@@ -196,9 +196,9 @@ namespace BitcrackRandomiser.Services.Randomiser
                 {
                     targetAddress
                 };
-                var fileSaved = Helper.SaveAddressVanity(addresses, gpuIndex);
+                var addressFile = Helper.SaveAddressVanity(addresses, gpuIndex);
 
-                if (fileSaved)
+                if (!string.IsNullOrWhiteSpace(addressFile))
                 {
                     switch (settings.AppType)
                     {
@@ -208,10 +208,10 @@ namespace BitcrackRandomiser.Services.Randomiser
                                 : settings.GPUSeperatedRange
                                 ? $"-gpuId {gpuIndex}"
                                 : $"-gpuId {string.Join(",", Enumerable.Range(0, settings.GPUCount).ToArray())}";
-                            appArguments = $"{settings.AppArgs} -t 0 -gpu {settedGpus} -i vanitysearch_gpu{gpuIndex}.txt --keyspace {keyspaceArgument}";
+                            appArguments = $"{settings.AppArgs} -t 0 -gpu {settedGpus} -i \"{addressFile}\" --keyspace {keyspaceArgument}";
                             break;
                         case AppType.cpu:
-                            appArguments = $"{settings.AppArgs} -i vanitysearch_gpu{gpuIndex}.txt --keyspace {keyspaceArgument}";
+                            appArguments = $"{settings.AppArgs} -i \"{addressFile}\" --keyspace {keyspaceArgument}";
                             break;
                     }
                 }
