@@ -79,12 +79,22 @@ namespace BitcrackRandomiser.Services.Randomiser
 
             if (useBackend)
             {
-                backendPoolClient ??= new BackendPoolClient(settings);
-                backendRange = backendPoolClient.ClaimRangeAsync(gpuIndex, CancellationToken.None).Result;
+                try
+                {
+                    backendPoolClient ??= new BackendPoolClient(settings);
+                    backendRange = backendPoolClient.ClaimRangeAsync(gpuIndex, CancellationToken.None).Result;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Failed to claim backend range.");
+                    Helper.WriteLine("Backend unavailable. Retrying in 15 seconds...", MessageType.error, true, gpuIndex);
+                    Thread.Sleep(TimeSpan.FromSeconds(15));
+                    return Scan(settings, gpuIndex);
+                }
 
                 if (backendRange is null)
                 {
-                    Helper.WriteLine("No backend ranges available. Retrying in 30 seconds...", MessageType.info, true);
+                    Helper.WriteLine("No backend ranges available. Retrying in 30 seconds...", MessageType.info, true, gpuIndex);
                     Thread.Sleep(TimeSpan.FromSeconds(30));
                     return Scan(settings, gpuIndex);
                 }
