@@ -14,17 +14,15 @@ namespace BitcrackRandomiser.Services.PoolService
         /// <summary>
         /// Get current status of external app (Bitcrack or another)
         /// </summary>
-        /// <param name="o"></param>
-        /// <param name="e"></param>
+        /// <param name="line">Output line</param>
         /// <param name="gpuIndex">GPU index</param>
         /// <param name="hex">HEX</param>
-        /// <returns>
-        /// [string] output message of external app
-        /// </returns>
-        public static Result GetStatus(object o, DataReceivedEventArgs e, int gpuIndex, string hex, AppType appType)
+        /// <returns>[string] output message of external app</returns>
+        public static Result GetStatus(string? line, int gpuIndex, string hex, AppType appType)
         {
-            if (e.Data != null)
+            if (!string.IsNullOrWhiteSpace(line))
             {
+                var data = line;
                 string currentDate = DateTime.Now.ToString("yyyy-MM-dd-HH:mm:ss");
                 int consoleWidth = 720;
                 if (Environment.UserInteractive && !Console.IsInputRedirected)
@@ -39,7 +37,7 @@ namespace BitcrackRandomiser.Services.PoolService
                 if (appType == AppType.bitcrack)
                 {
                     /// Bitcrack
-                    if (e.Data.Contains("Reached") || e.Data.Contains("No targets remaining"))
+                    if (data.Contains("Reached") || data.Contains("No targets remaining"))
                     {
                         string finishedMessage = string.Format("[{0}] [Info] {1}", currentDate, "Scan completed.");
                         if (Program.isCloudSearchMode)
@@ -48,24 +46,24 @@ namespace BitcrackRandomiser.Services.PoolService
                             Console.Write(finishedMessage + new string(' ', consoleWidth - finishedMessage.Length));
                         return new Result { OutputType = OutputType.finished };
                     }
-                    else if (e.Data.Contains("Address:"))
+                    else if (data.Contains("Address:"))
                     {
-                        string address = e.Data.Split(':').Last().Trim();
+                        string address = data.Split(':').Last().Trim();
                         return new Result { OutputType = OutputType.address, Content = address };
                     }
-                    else if (e.Data.Contains("Private key:"))
+                    else if (data.Contains("Private key:"))
                     {
-                        string key = e.Data.Replace(" ", "").ToLower().Trim().Replace("privatekey:", "").Trim().ToUpper();
+                        string key = data.Replace(" ", "").ToLower().Trim().Replace("privatekey:", "").Trim().ToUpper();
                         return new Result { OutputType = OutputType.privateKeyFound, Content = key };
                     }
-                    else if (e.Data.Contains("Initializing"))
+                    else if (data.Contains("Initializing"))
                     {
-                        string gpuModel = e.Data[e.Data.IndexOf("Initializing")..].Replace("Initializing", "").Trim();
+                        string gpuModel = data[data.IndexOf("Initializing")..].Replace("Initializing", "").Trim();
                         return new Result { OutputType = OutputType.gpuModel, Content = gpuModel };
                     }
                     else
                     {
-                        string data = e.Data.Trim();
+                        data = data.Trim();
                         var result = new Result { OutputType = OutputType.running };
 
                         if (TryExtractSpeed(data, out double speed))
@@ -98,7 +96,7 @@ namespace BitcrackRandomiser.Services.PoolService
                 else if (appType == AppType.vanitysearch || appType == AppType.cpu)
                 {
                     /// VanitySearch
-                    if (e.Data.Contains("[EXIT]"))
+                    if (data.Contains("[EXIT]"))
                     {
                         string finishedMessage = string.Format("[{0}] [Info] {1}", currentDate, "Scan completed.");
                         if (Program.isCloudSearchMode)
@@ -107,23 +105,23 @@ namespace BitcrackRandomiser.Services.PoolService
                             Console.Write(finishedMessage + new string(' ', consoleWidth - finishedMessage.Length));
                         return new Result { OutputType = OutputType.finished };
                     }
-                    else if (e.Data.Contains("Public Addr:"))
+                    else if (data.Contains("Public Addr:"))
                     {
-                        string address = e.Data.Split(':').Last().Trim();
+                        string address = data.Split(':').Last().Trim();
                         return new Result { OutputType = OutputType.address, Content = address };
                     }
-                    else if (e.Data.Contains("Priv (HEX):"))
+                    else if (data.Contains("Priv (HEX):"))
                     {
-                        string key = e.Data.Split(':').Last().Trim().Replace("0x", "").Trim();
+                        string key = data.Split(':').Last().Trim().Replace("0x", "").Trim();
                         if (key.Length != 64)
                             key = new string('0', 64 - key.Length) + key;
                         return new Result { OutputType = OutputType.privateKeyFound, Content = key };
                     }
-                    else if (e.Data.Contains("GPU:"))
+                    else if (data.Contains("GPU:"))
                     {
                         try
                         {
-                            string gpuModel = e.Data.Split(':').Last().Trim().Replace("GPU", "");
+                            string gpuModel = data.Split(':').Last().Trim().Replace("GPU", "");
                             gpuModel = gpuModel.Substring(gpuModel.IndexOf('#') + 2);
                             gpuModel = gpuModel.Remove(gpuModel.IndexOf('(')).Trim();
                             return new Result { OutputType = OutputType.gpuModel, Content = gpuModel };
@@ -135,7 +133,7 @@ namespace BitcrackRandomiser.Services.PoolService
                     }
                     else
                     {
-                        string data = e.Data.Trim();
+                        data = data.Trim();
                         var result = new Result { OutputType = OutputType.running };
 
                         if (TryExtractSpeed(data, out double speed))

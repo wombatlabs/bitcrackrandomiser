@@ -3,7 +3,9 @@ using BitcrackRandomiser.Models;
 using BitcrackRandomiser.Services.PoolService;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 
 namespace BitcrackRandomiser.Services.Randomiser
@@ -251,10 +253,6 @@ namespace BitcrackRandomiser.Services.Randomiser
                 EnableRaisingEvents = true
             };
 
-            // Output from BitCrack
-            process.ErrorDataReceived += (o, s) => OutputReceivedHandler(o, s, targetAddress, proofValues, rangeIdentifier, settings, process, gpuIndex);
-            process.OutputDataReceived += (o, s) => OutputReceivedHandler(o, s, targetAddress, proofValues, rangeIdentifier, settings, process, gpuIndex);
-
             // App exited
             process.Exited += (sender, args) =>
             {
@@ -278,8 +276,7 @@ namespace BitcrackRandomiser.Services.Randomiser
 
             // Start the app
             process.Start();
-            process.BeginErrorReadLine();
-            process.BeginOutputReadLine();
+            AttachProcessOutputReaders(process, targetAddress, proofValues, rangeIdentifier, settings, gpuIndex);
             return taskCompletionSource.Task;
         }
 
@@ -386,20 +383,12 @@ namespace BitcrackRandomiser.Services.Randomiser
             }
         }
 
-        /// <summary>
-        /// Handler for data received by external app
-        /// </summary>
-        /// <param name="o"></param>
-        /// <param name="e"></param>
-        /// <param name="targetAddress">Target address</param>
-        /// <param name="proofValues">Proof values</param>
-        /// <param name="hex">Selected HEX range</param>
-        /// <param name="settings">Current settings</param>
-        /// <param name="process">Active proccess</param>
-        /// <param name="gpuIndex">GPU Index</param>
-        public static void OutputReceivedHandler(object o, DataReceivedEventArgs e, string targetAddress, List<string> proofValues, string hex, Setting settings, Process process, int gpuIndex)
+        private static void ProcessOutputLine(string? data, string targetAddress, List<string> proofValues, string hex, Setting settings, Process process, int gpuIndex)
         {
-            var status = JobStatus.GetStatus(o, e, gpuIndex, hex, settings.AppType);
+            if (string.IsNullOrWhiteSpace(data))
+                return;
+
+            var status = JobStatus.GetStatus(data, gpuIndex, hex, settings.AppType);
             if (status.OutputType == OutputType.finished)
             {
                 // Job finished normally and range scanned.
@@ -457,6 +446,71 @@ namespace BitcrackRandomiser.Services.Randomiser
         {
             backendPoolClient?.Dispose();
             backendPoolClient = null;
+        }
+
+        private static void AttachProcessOutputReaders(
+            Process process,
+            string targetAddress,
+            List<string> proofValues,
+            string hex,
+            Setting settings,
+            int gpuIndex)
+        {
+            var outputReader = process.StandardOutput;
+            var errorReader = process.StandardError;
+
+            StartPumpTask(outputReader, line => ProcessOutputLine(line, targetAddress, proofValues, hex, settings, process, gpuIndex));
+            StartPumpTask(errorReader, line => ProcessOutputLine(line, targetAddress, proofValues, hex, settings, process, gpuIndex));
+        }
+
+        private static void StartPumpTask(StreamReader reader, Action<string?> handler)
+        {
+            _ = Task.Run(async () =>
+            {
+                var buffer = new char[512];
+                var sb = new StringBuilder();
+
+                try
+                {
+                    while (true)
+                    {
+                        var read = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                        if (read <= 0)
+                            break;
+
+                        for (int i = 0; i < read; i++)
+                        {
+                            var ch = buffer[i];
+                            if (ch == '\r' || ch == '\n')
+                            {
+                                if (sb.Length > 0)
+                                {
+                                    handler(sb.ToString());
+                                    sb.Clear();
+                                }
+                                continue;
+                            }
+
+                            sb.Append(ch);
+                        }
+                    }
+
+                    if (sb.Length > 0)
+                        handler(sb.ToString());
+                }
+                catch (ObjectDisposedException)
+                {
+                    // The process ended; ignore.
+                }
+                catch (InvalidOperationException)
+                {
+                    // Stream no longer available; ignore.
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Failed to read process output.");
+                }
+            });
         }
 
         private static void UpdateBackendTelemetry(Setting settings, int gpuIndex, double? progress, double? speed)
