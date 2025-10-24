@@ -388,6 +388,7 @@ namespace BitcrackRandomiser.Services.Randomiser
             if (string.IsNullOrWhiteSpace(data))
                 return;
 
+            Logger.LogInformation($"GPU{gpuIndex} >> {data}");
             var status = JobStatus.GetStatus(data, gpuIndex, hex, settings.AppType);
             if (status.OutputType == OutputType.finished)
             {
