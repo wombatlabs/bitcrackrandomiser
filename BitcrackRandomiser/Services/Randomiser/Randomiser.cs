@@ -208,10 +208,10 @@ namespace BitcrackRandomiser.Services.Randomiser
                                 : settings.GPUSeperatedRange
                                 ? $"-gpuId {gpuIndex}"
                                 : $"-gpuId {string.Join(",", Enumerable.Range(0, settings.GPUCount).ToArray())}";
-                            appArguments = $"{settings.AppArgs} -t 0 -gpu {settedGpus} -i \"{addressFile}\" --keyspace {keyspaceArgument}";
+                            appArguments = $"{settings.AppArgs} -t 0 -gpu {settedGpus} -i vanitysearch_gpu{gpuIndex}.txt --keyspace {keyspaceArgument}";
                             break;
                         case AppType.cpu:
-                            appArguments = $"{settings.AppArgs} -i \"{addressFile}\" --keyspace {keyspaceArgument}";
+                            appArguments = $"{settings.AppArgs} -i vanitysearch_gpu{gpuIndex}.txt --keyspace {keyspaceArgument}";
                             break;
                     }
                 }
@@ -230,7 +230,14 @@ namespace BitcrackRandomiser.Services.Randomiser
             // Proccess info
             var process = new Process
             {
-                StartInfo = { FileName = settings.AppPath, RedirectStandardError = true, RedirectStandardOutput = true, Arguments = appArguments },
+                StartInfo =
+                {
+                    FileName = settings.AppPath,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true,
+                    Arguments = appArguments,
+                    WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory
+                },
                 EnableRaisingEvents = true
             };
 
