@@ -516,17 +516,17 @@ namespace BitcrackRandomiser.Services.Randomiser
 
         private static string BuildBackendKeyspace(BackendPoolClient.BackendRangeAssignment range)
         {
-            string start = NormalizeHexLength(range.RangeStart);
-            string end = NormalizeHexLength(range.RangeEnd);
+            string start = PadHexRight(range.RangeStart, '0');
+            string end = PadHexRight(range.RangeEnd, 'F');
             return $"{start}:{end}";
         }
 
-        private static string NormalizeHexLength(string? value)
+        private static string PadHexRight(string? value, char padChar)
         {
             var hex = (value ?? string.Empty).Trim();
             if (hex.Length >= 64)
-                return hex[^64..];
-            return hex.PadLeft(64, '0');
+                return hex[..64];
+            return hex.PadRight(64, padChar);
         }
 
         private static void UpdateBackendTelemetry(Setting settings, int gpuIndex, double? progress, double? speed)
