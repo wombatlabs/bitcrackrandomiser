@@ -190,7 +190,7 @@ namespace BitcrackRandomiser.Services.Randomiser
             // App arguments
             string appArguments = "";
             string keyspaceArgument = useBackend
-                ? $"{backendRange!.RangeStart}:{backendRange.RangeEnd}"
+                ? BuildBackendKeyspace(backendRange!)
                 : $"{randomHex}{workloadStart}:+{workloadEnd}";
 
             if (settings.AppType == AppType.bitcrack)
@@ -512,6 +512,21 @@ namespace BitcrackRandomiser.Services.Randomiser
                     Logger.LogError(ex, "Failed to read process output.");
                 }
             });
+        }
+
+        private static string BuildBackendKeyspace(BackendPoolClient.BackendRangeAssignment range)
+        {
+            string start = PadHexTo64(range.RangeStart, '0');
+            string end = PadHexTo64(range.RangeEnd, 'F');
+            return $"{start}:{end}";
+        }
+
+        private static string PadHexTo64(string? value, char padChar)
+        {
+            var hex = (value ?? string.Empty).Trim();
+            if (hex.Length >= 64)
+                return hex[^64..];
+            return hex.PadRight(64, padChar);
         }
 
         private static void UpdateBackendTelemetry(Setting settings, int gpuIndex, double? progress, double? speed)
