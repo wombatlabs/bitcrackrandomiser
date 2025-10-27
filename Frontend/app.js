@@ -65,18 +65,24 @@ function renderSummary(stats) {
 
 function renderWorkers(workers) {
     if (!workers || workers.length === 0) {
-        workerTableBody.innerHTML = `<tr><td colspan="8" class="empty">No worker data</td></tr>`;
+        workerTableBody.innerHTML = `<tr><td colspan="10" class="empty">No worker data</td></tr>`;
         workerCountEl.textContent = "0 online";
         return;
     }
 
     const now = Date.now();
+    const totalSpeed = workers
+        .map(worker => Number.isFinite(worker.speedKeysPerSecond) ? worker.speedKeysPerSecond : 0)
+        .reduce((sum, speed) => sum + speed, 0);
+
     const rows = workers.map(worker => {
         const lastSeen = new Date(worker.lastSeenUtc);
         const isOffline = now - lastSeen.getTime() > OFFLINE_THRESHOLD_MS;
         const progress = worker.currentRangeProgress ?? 0;
         const currentRange = worker.currentRange ?? "—";
         const status = worker.status ?? (isOffline ? "Offline" : "Unknown");
+        const speed = Number.isFinite(worker.speedKeysPerSecond) ? worker.speedKeysPerSecond : 0;
+        const share = totalSpeed > 0 ? (speed / totalSpeed) * 100 : 0;
 
         return `
             <tr class="${isOffline ? "offline" : ""}">
@@ -85,7 +91,8 @@ function renderWorkers(workers) {
                 <td>${escapeHtml(worker.applicationType)}</td>
                 <td>${escapeHtml(worker.puzzleCode || "—")}</td>
                 <td>${worker.cardsConnected}</td>
-                <td><span class="speed-chip">${formatSpeed(worker.speedKeysPerSecond)}</span></td>
+                <td><span class="speed-chip">${formatSpeed(speed)}</span></td>
+                <td>${share.toFixed(2)}%</td>
                 <td>${escapeHtml(currentRange)}</td>
                 <td>
                     <div class="progress-bar">
