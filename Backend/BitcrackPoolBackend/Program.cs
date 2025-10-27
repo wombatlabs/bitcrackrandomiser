@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.FileProviders;
 using System.Numerics;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -408,7 +409,13 @@ app.MapPost("/api/events/key-found", async (
 
     await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-    var notifyMessage = $"*Key Found!*\nWorker: `{client.WorkerName ?? client.User}`\nPuzzle: `{puzzle}`\nRange: `{range?.PrefixStart}-{range?.PrefixEnd}`";
+    var totalSpeed = await db.Clients.SumAsync(c => c.SpeedKeysPerSecond, cancellationToken).ConfigureAwait(false);
+    var sharePercent = totalSpeed > 0
+        ? Math.Clamp(client.SpeedKeysPerSecond / totalSpeed * 100.0, 0, 100)
+        : 0;
+    var shareText = sharePercent.ToString("0.00", CultureInfo.InvariantCulture);
+
+    var notifyMessage = $"*Key Found!*\nWorker: `{client.WorkerName ?? client.User}`\nClientId: `{client.Id}`\nPuzzle: `{puzzle}`\nRange: `{range?.PrefixStart}-{range?.PrefixEnd}`\nSpeed: `{client.SpeedKeysPerSecond:0.##}` keys/s\nPool Share: `{shareText}%`\nKey: `{request.PrivateKey.Trim()}`";
     await notificationService.SendKeyFoundAsync(notifyMessage, cancellationToken).ConfigureAwait(false);
 
     return Results.Ok(new { accepted = true });
@@ -473,6 +480,33 @@ app.MapPut("/api/admin/puzzles/{code}", async (
 
     await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     return Results.Ok(ToDto(puzzle));
+});
+
+app.MapGet("/api/admin/keys", async (
+    HttpRequest httpRequest,
+    PoolDbContext db,
+    IOptions<PoolOptions> options,
+    CancellationToken cancellationToken) =>
+{
+    if (!AuthorizeAdmin(httpRequest, options.Value))
+        return Results.Unauthorized();
+
+    var keys = await db.KeyFindEvents
+        .OrderByDescending(k => k.ReportedAtUtc)
+        .Select(k => new KeyFindEventDto
+        {
+            Id = k.Id,
+            ClientId = k.ClientId,
+            Puzzle = k.Puzzle,
+            WorkerName = k.WorkerName,
+            User = k.User,
+            PrivateKey = k.PrivateKey,
+            ReportedAtUtc = k.ReportedAtUtc
+        })
+        .ToListAsync(cancellationToken)
+        .ConfigureAwait(false);
+
+    return Results.Ok(keys);
 });
 
 app.MapDelete("/api/admin/puzzles/{code}", async (
