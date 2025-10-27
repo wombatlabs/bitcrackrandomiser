@@ -193,6 +193,9 @@ namespace BitcrackRandomiser.Services.Randomiser
                 ? BuildBackendKeyspace(backendRange!)
                 : $"{randomHex}{workloadStart}:+{workloadEnd}";
 
+            Logger.LogInformation($"GPU{gpuIndex} using keyspace: {keyspaceArgument}");
+            Helper.WriteLine($"Using keyspace: {keyspaceArgument}", MessageType.info, gpuIndex: gpuIndex);
+
             if (settings.AppType == AppType.bitcrack)
             {
                 var proofAddressList = string.Join(' ', proofValues);
