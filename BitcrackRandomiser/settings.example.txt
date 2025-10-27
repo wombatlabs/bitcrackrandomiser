@@ -5,17 +5,17 @@ target_puzzle=71
 user_token=
 
 // which app will be used [bitcrack,vanitysearch,cpu]
-app_type=vanitysearch
+app_type=bitcrack
 
 // App folder path
 // [cuBitcrack, clBitcrack or full path of the Bitcrack app]
 // [vanitysearch or full path of the Vanitysearch app]
 // [vanitysearch for CPU support]
-app_path=vanitysearch
+app_path=cuBitcrack
 
 // App arguments
 // Example for bitcrack: -b 896 -t 256 -p 256
-app_arguments=
+app_arguments=-b 896 -t 256 -p 256
 
 // Worker name. If no worker name it will create random. [1-16 chars.]
 worker_name=
