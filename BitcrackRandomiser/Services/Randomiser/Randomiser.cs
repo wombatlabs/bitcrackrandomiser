@@ -112,6 +112,7 @@ namespace BitcrackRandomiser.Services.Randomiser
                 }
 
                 targetAddress = backendTarget;
+                settings.TargetPuzzle = backendRange.Puzzle;
                 proofValues = new List<string>();
                 randomHex = backendRange.PrefixStart;
                 workloadStart = backendRange.WorkloadStartSuffix;
