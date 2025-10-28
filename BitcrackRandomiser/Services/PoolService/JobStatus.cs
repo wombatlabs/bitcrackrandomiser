@@ -206,22 +206,24 @@ namespace BitcrackRandomiser.Services.PoolService
             if (string.IsNullOrWhiteSpace(data))
                 return false;
 
-            if (!data.Contains("%", StringComparison.Ordinal) ||
-                (!data.Contains("progress", StringComparison.OrdinalIgnoreCase) &&
-                 !data.Contains("scanned", StringComparison.OrdinalIgnoreCase) &&
-                 !data.Contains("completed", StringComparison.OrdinalIgnoreCase)))
-            {
+            var matches = Regex.Matches(data, "([0-9]+(?:\\.[0-9]+)?)%", RegexOptions.IgnoreCase);
+            if (matches.Count == 0)
                 return false;
+
+            double maxPercent = 0;
+            bool parsed = false;
+            foreach (Match match in matches)
+            {
+                if (!double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double percent))
+                    continue;
+                maxPercent = Math.Max(maxPercent, percent);
+                parsed = true;
             }
 
-            var match = Regex.Match(data, "([0-9]+(?:\\.[0-9]+)?)%", RegexOptions.IgnoreCase);
-            if (!match.Success)
+            if (!parsed)
                 return false;
 
-            if (!double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double percent))
-                return false;
-
-            progress = Math.Clamp(percent, 0, 100);
+            progress = Math.Clamp(maxPercent, 0, 100);
             return true;
         }
     }
