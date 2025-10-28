@@ -48,7 +48,7 @@ namespace BitcrackRandomiser.Services.Randomiser
         private static double[] backendSpeeds = new double[16];
         private static double[] backendProgress = new double[16];
         private static DateTime[] backendLastReportUtc = new DateTime[16];
-        private static double[] backendTotalKeyBaselines = new double[16];
+        private static BigInteger[] backendTotalKeyBaselines = new BigInteger[16];
         private static bool[] backendTotalKeyBaselinesSet = new bool[16];
         private static BigInteger[] backendRangeKeyCounts = new BigInteger[16];
 
@@ -405,7 +405,7 @@ namespace BitcrackRandomiser.Services.Randomiser
 
             Logger.LogInformation($"GPU{gpuIndex} >> {data}");
             double? estimatedProgress = null;
-            if (backendRanges[gpuIndex] is not null && TryParseTotalKeys(data, out double totalKeys))
+            if (backendRanges[gpuIndex] is not null && TryParseTotalKeys(data, out BigInteger totalKeys))
             {
                 if (!backendTotalKeyBaselinesSet[gpuIndex])
                 {
@@ -416,11 +416,14 @@ namespace BitcrackRandomiser.Services.Randomiser
                 var rangeCount = backendRangeKeyCounts[gpuIndex];
                 if (rangeCount > BigInteger.Zero)
                 {
-                    var diff = Math.Max(0d, totalKeys - backendTotalKeyBaselines[gpuIndex]);
-                    var rangeSize = (double)rangeCount;
-                    if (rangeSize > 0)
+                    var diff = totalKeys - backendTotalKeyBaselines[gpuIndex];
+                    if (diff < BigInteger.Zero)
+                        diff = BigInteger.Zero;
+
+                    if (rangeCount > BigInteger.Zero)
                     {
-                        estimatedProgress = Math.Clamp(diff / rangeSize * 100.0, 0, 100);
+                        var progressValue = (double)diff * 100d / (double)rangeCount;
+                        estimatedProgress = Math.Clamp(progressValue, 0, 100);
                     }
                 }
             }
@@ -589,7 +592,7 @@ namespace BitcrackRandomiser.Services.Randomiser
             }
         }
 
-        private static bool TryParseTotalKeys(string data, out double totalKeys)
+        private static bool TryParseTotalKeys(string data, out BigInteger totalKeys)
         {
             totalKeys = 0;
             var match = Regex.Match(data, "\\(([0-9,]+)\\s+total\\)", RegexOptions.IgnoreCase);
@@ -597,7 +600,7 @@ namespace BitcrackRandomiser.Services.Randomiser
                 return false;
 
             var numeric = match.Groups[1].Value.Replace(",", string.Empty, StringComparison.Ordinal);
-            if (!double.TryParse(numeric, NumberStyles.Number, CultureInfo.InvariantCulture, out var value))
+            if (!BigInteger.TryParse(numeric, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
                 return false;
 
             totalKeys = value;

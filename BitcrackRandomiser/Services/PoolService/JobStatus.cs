@@ -216,7 +216,6 @@ namespace BitcrackRandomiser.Services.PoolService
             {
                 if (!double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double percent))
                     continue;
-                Logger.LogInformation($"Parsed progress segment: {percent}% from '{data}'");
                 maxPercent = Math.Max(maxPercent, percent);
                 parsed = true;
             }
