@@ -4,8 +4,10 @@ using BitcrackRandomiser.Services.PoolService;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Numerics;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace BitcrackRandomiser.Services.Randomiser
@@ -46,6 +48,9 @@ namespace BitcrackRandomiser.Services.Randomiser
         private static double[] backendSpeeds = new double[16];
         private static double[] backendProgress = new double[16];
         private static DateTime[] backendLastReportUtc = new DateTime[16];
+        private static double[] backendTotalKeyBaselines = new double[16];
+        private static bool[] backendTotalKeyBaselinesSet = new bool[16];
+        private static BigInteger[] backendRangeKeyCounts = new BigInteger[16];
 
         // Check if app started
         public static bool appStarted = false;
@@ -122,6 +127,8 @@ namespace BitcrackRandomiser.Services.Randomiser
                 backendProgress[gpuIndex] = 0;
                 backendSpeeds[gpuIndex] = 0;
                 backendLastReportUtc[gpuIndex] = DateTime.MinValue;
+                backendRangeKeyCounts[gpuIndex] = ComputeRangeKeyCount(backendRange);
+                backendTotalKeyBaselinesSet[gpuIndex] = false;
 
                 backendPoolClient.ReportProgressAsync(
                     gpuIndex,
@@ -165,6 +172,8 @@ namespace BitcrackRandomiser.Services.Randomiser
                 workloadStart = hexResult.data.WorkloadStart;
                 workloadEnd = hexResult.data.WorkloadEnd;
                 rangeIdentifier = randomHex;
+                backendRangeKeyCounts[gpuIndex] = BigInteger.Zero;
+                backendTotalKeyBaselinesSet[gpuIndex] = false;
             }
 
             // Write info
@@ -294,6 +303,8 @@ namespace BitcrackRandomiser.Services.Randomiser
         /// <param name="gpuIndex">GPU index</param>
         private static void JobFinished(string targetAddress, string hex, Setting settings, bool keyFound = false, int gpuIndex = 0)
         {
+            backendTotalKeyBaselinesSet[gpuIndex] = false;
+            backendRangeKeyCounts[gpuIndex] = BigInteger.Zero;
             if (keyFound)
             {
                 // Always send notification when key found
@@ -393,7 +404,34 @@ namespace BitcrackRandomiser.Services.Randomiser
                 return;
 
             Logger.LogInformation($"GPU{gpuIndex} >> {data}");
+            double? estimatedProgress = null;
+            if (backendRanges[gpuIndex] is not null && TryParseTotalKeys(data, out double totalKeys))
+            {
+                if (!backendTotalKeyBaselinesSet[gpuIndex])
+                {
+                    backendTotalKeyBaselines[gpuIndex] = totalKeys;
+                    backendTotalKeyBaselinesSet[gpuIndex] = true;
+                }
+
+                var rangeCount = backendRangeKeyCounts[gpuIndex];
+                if (rangeCount > BigInteger.Zero)
+                {
+                    var diff = Math.Max(0d, totalKeys - backendTotalKeyBaselines[gpuIndex]);
+                    var rangeSize = (double)rangeCount;
+                    if (rangeSize > 0)
+                    {
+                        estimatedProgress = Math.Clamp(diff / rangeSize * 100.0, 0, 100);
+                    }
+                }
+            }
+
             var status = JobStatus.GetStatus(data, gpuIndex, hex, settings.AppType);
+            if (estimatedProgress.HasValue)
+            {
+                status.ProgressPercent = status.ProgressPercent.HasValue
+                    ? Math.Max(status.ProgressPercent.Value, estimatedProgress.Value)
+                    : estimatedProgress.Value;
+            }
             if (status.OutputType == OutputType.finished)
             {
                 // Job finished normally and range scanned.
@@ -440,6 +478,9 @@ namespace BitcrackRandomiser.Services.Randomiser
             }
             else if (status.OutputType == OutputType.gpuModel)
                 gpuNames[gpuIndex] = status!.Content!;
+
+            if (status.ProgressPercent.HasValue)
+                backendProgress[gpuIndex] = status.ProgressPercent.Value;
 
             if (settings.IsBackendConfigured && (status.SpeedKeysPerSecond.HasValue || status.ProgressPercent.HasValue))
             {
@@ -531,6 +572,36 @@ namespace BitcrackRandomiser.Services.Randomiser
             if (hex.Length >= 64)
                 return hex[..64];
             return hex.PadRight(64, padChar);
+        }
+
+        private static BigInteger ComputeRangeKeyCount(BackendPoolClient.BackendRangeAssignment range)
+        {
+            try
+            {
+                var start = BigInteger.Parse(range.RangeStart, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+                var end = BigInteger.Parse(range.RangeEnd, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+                var count = end - start + BigInteger.One;
+                return count > BigInteger.Zero ? count : BigInteger.Zero;
+            }
+            catch
+            {
+                return BigInteger.Zero;
+            }
+        }
+
+        private static bool TryParseTotalKeys(string data, out double totalKeys)
+        {
+            totalKeys = 0;
+            var match = Regex.Match(data, "\\(([0-9,]+)\\s+total\\)", RegexOptions.IgnoreCase);
+            if (!match.Success)
+                return false;
+
+            var numeric = match.Groups[1].Value.Replace(",", string.Empty, StringComparison.Ordinal);
+            if (!double.TryParse(numeric, NumberStyles.Number, CultureInfo.InvariantCulture, out var value))
+                return false;
+
+            totalKeys = value;
+            return true;
         }
 
         private static void UpdateBackendTelemetry(Setting settings, int gpuIndex, double? progress, double? speed)
