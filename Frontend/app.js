@@ -75,17 +75,31 @@ function renderWorkers(workers) {
         .map(worker => Number.isFinite(worker.speedKeysPerSecond) ? worker.speedKeysPerSecond : 0)
         .reduce((sum, speed) => sum + speed, 0);
 
-    const rows = workers.map(worker => {
+    const activeWorkers = workers.filter(worker => {
         const lastSeen = new Date(worker.lastSeenUtc);
-        const isOffline = now - lastSeen.getTime() > OFFLINE_THRESHOLD_MS;
+        return now - lastSeen.getTime() <= OFFLINE_THRESHOLD_MS;
+    });
+
+    if (activeWorkers.length === 0) {
+        workerTableBody.innerHTML = `<tr><td colspan="10" class="empty">No worker data</td></tr>`;
+        workerCountEl.textContent = "0 online";
+        return;
+    }
+
+    const totalSpeed = activeWorkers
+        .map(worker => Number.isFinite(worker.speedKeysPerSecond) ? worker.speedKeysPerSecond : 0)
+        .reduce((sum, speed) => sum + speed, 0);
+
+    const rows = activeWorkers.map(worker => {
+        const lastSeen = new Date(worker.lastSeenUtc);
         const progress = worker.currentRangeProgress ?? 0;
         const currentRange = worker.currentRange ?? "—";
-        const status = worker.status ?? (isOffline ? "Offline" : "Unknown");
+        const status = worker.status ?? "Active";
         const speed = Number.isFinite(worker.speedKeysPerSecond) ? worker.speedKeysPerSecond : 0;
         const share = totalSpeed > 0 ? (speed / totalSpeed) * 100 : 0;
 
         return `
-            <tr class="${isOffline ? "offline" : ""}">
+            <tr>
                 <td>${escapeHtml(worker.user)}</td>
                 <td>${escapeHtml(worker.workerName ?? "—")}</td>
                 <td>${escapeHtml(worker.applicationType)}</td>
@@ -107,12 +121,7 @@ function renderWorkers(workers) {
 
     workerTableBody.innerHTML = rows;
 
-    const onlineCount = workers.filter(worker => {
-        const lastSeen = new Date(worker.lastSeenUtc);
-        return Date.now() - lastSeen.getTime() <= OFFLINE_THRESHOLD_MS;
-    }).length;
-
-    workerCountEl.textContent = `${onlineCount} online`;
+    workerCountEl.textContent = `${activeWorkers.length} online`;
 }
 
 function renderRanges(ranges) {
