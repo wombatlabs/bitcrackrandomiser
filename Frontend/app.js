@@ -71,10 +71,6 @@ function renderWorkers(workers) {
     }
 
     const now = Date.now();
-    const totalSpeed = workers
-        .map(worker => Number.isFinite(worker.speedKeysPerSecond) ? worker.speedKeysPerSecond : 0)
-        .reduce((sum, speed) => sum + speed, 0);
-
     const activeWorkers = workers.filter(worker => {
         const lastSeen = new Date(worker.lastSeenUtc);
         return now - lastSeen.getTime() <= OFFLINE_THRESHOLD_MS;
