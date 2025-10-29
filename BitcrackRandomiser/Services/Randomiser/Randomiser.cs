@@ -439,6 +439,13 @@ namespace BitcrackRandomiser.Services.Randomiser
                     ? Math.Max(status.ProgressPercent.Value, estimatedProgress.Value)
                     : estimatedProgress.Value;
             }
+            if (status.OutputType != OutputType.finished &&
+                status.ProgressPercent.HasValue &&
+                status.ProgressPercent.Value >= 100 &&
+                data.Contains("Progress", StringComparison.OrdinalIgnoreCase))
+            {
+                status.OutputType = OutputType.finished;
+            }
             if (status.OutputType == OutputType.finished)
             {
                 // Job finished normally and range scanned.
