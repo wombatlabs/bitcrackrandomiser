@@ -48,6 +48,7 @@ namespace BitcrackRandomiser.Services.Randomiser
         private static double[] backendSpeeds = new double[16];
         private static double[] backendProgress = new double[16];
         private static DateTime[] backendLastReportUtc = new DateTime[16];
+        private static DateTime[] backendLastSummaryUtc = new DateTime[16];
         private static BigInteger[] backendTotalKeyBaselines = new BigInteger[16];
         private static bool[] backendTotalKeyBaselinesSet = new bool[16];
         private static BigInteger[] backendRangeKeyCounts = new BigInteger[16];
@@ -127,6 +128,7 @@ namespace BitcrackRandomiser.Services.Randomiser
                 backendProgress[gpuIndex] = 0;
                 backendSpeeds[gpuIndex] = 0;
                 backendLastReportUtc[gpuIndex] = DateTime.MinValue;
+                backendLastSummaryUtc[gpuIndex] = DateTime.MinValue;
                 backendRangeKeyCounts[gpuIndex] = ComputeRangeKeyCount(backendRange);
                 backendTotalKeyBaselinesSet[gpuIndex] = false;
 
@@ -174,6 +176,7 @@ namespace BitcrackRandomiser.Services.Randomiser
                 rangeIdentifier = randomHex;
                 backendRangeKeyCounts[gpuIndex] = BigInteger.Zero;
                 backendTotalKeyBaselinesSet[gpuIndex] = false;
+                backendLastSummaryUtc[gpuIndex] = DateTime.MinValue;
             }
 
             // Write info
@@ -305,6 +308,7 @@ namespace BitcrackRandomiser.Services.Randomiser
         {
             backendTotalKeyBaselinesSet[gpuIndex] = false;
             backendRangeKeyCounts[gpuIndex] = BigInteger.Zero;
+            backendLastSummaryUtc[gpuIndex] = DateTime.MinValue;
             if (keyFound)
             {
                 // Always send notification when key found
@@ -649,8 +653,12 @@ namespace BitcrackRandomiser.Services.Randomiser
 
             backendLastReportUtc[gpuIndex] = now;
 
-            string summary = $"GPU{gpuIndex} Range {backendRange.PrefixStart}-{backendRange.PrefixEnd} | Progress {backendProgress[gpuIndex]:0.00}% | Speed {FormatSpeed(backendSpeeds[gpuIndex])}";
-            Helper.WriteLine(summary, MessageType.externalApp, gpuIndex: gpuIndex);
+            if ((now - backendLastSummaryUtc[gpuIndex]) >= TimeSpan.FromSeconds(2))
+            {
+                string summary = $"GPU{gpuIndex} Range {backendRange.PrefixStart}-{backendRange.PrefixEnd} | Progress {backendProgress[gpuIndex]:0.00}% | Speed {FormatSpeed(backendSpeeds[gpuIndex])}";
+                Helper.WriteLine(summary, MessageType.externalApp, gpuIndex: gpuIndex);
+                backendLastSummaryUtc[gpuIndex] = now;
+            }
         }
 
         private static string FormatSpeed(double value)
