@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Numerics;
 using System.Reflection;
+using Serilog.Context;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -64,6 +65,11 @@ namespace BitcrackRandomiser.Services.Randomiser
         /// <returns></returns>
         public static Task<int> Scan(Setting settings, int gpuIndex)
         {
+            var workerLogName = settings.WorkerName;
+            if (settings.GPUCount > 1 || settings.GPUSeperatedRange || settings.AppType == AppType.bitcrack)
+                workerLogName = $"{workerLogName}_gpu{gpuIndex}";
+            using var _ = LogContext.PushProperty("WorkerName", workerLogName);
+
             // Check important area
             if (!settings.TelegramShare && settings.UntrustedComputer && !settings.IsApiShare)
             {
@@ -665,7 +671,7 @@ namespace BitcrackRandomiser.Services.Randomiser
             if ((now - backendLastSummaryUtc[gpuIndex]) >= TimeSpan.FromSeconds(2))
             {
                 string summary = $"GPU{gpuIndex} Range {backendRange.PrefixStart}-{backendRange.PrefixEnd} | Progress {backendProgress[gpuIndex]:0.00}% | Speed {FormatSpeed(backendSpeeds[gpuIndex])}";
-                Helper.WriteLine(summary, MessageType.externalApp, gpuIndex: gpuIndex);
+                Logger.LogInformation(summary);
                 backendLastSummaryUtc[gpuIndex] = now;
             }
         }

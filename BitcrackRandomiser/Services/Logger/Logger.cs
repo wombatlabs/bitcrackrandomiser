@@ -14,9 +14,17 @@ namespace BitcrackRandomiser.Services
             if (_logger == null)
             {
                 var fileName = DateTime.Now.ToString("dd-MM-yyyy");
+                var baseFile = $"logs\\logs_{fileName}.txt";
+                var fileTemplate = $"logs\\logs_{fileName}_{{WorkerName}}.txt";
+
                 _logger = new LoggerConfiguration()
                     .MinimumLevel.Debug()
-                    .WriteTo.File($"logs\\logs_{fileName}.txt")
+                    .WriteTo.Map(
+                        keySelector: "WorkerName",
+                        defaultKey: "default",
+                        configure: (workerName, lc) => lc.File(
+                            (workerName == "default" || string.IsNullOrWhiteSpace(workerName)) ? baseFile : fileTemplate.Replace("{WorkerName}", workerName)
+                        ))
                 .CreateLogger();
                 _logger.Information("Logger created/updated");
             }
