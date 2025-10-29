@@ -1,5 +1,6 @@
 ﻿using BitcrackRandomiser.Enums;
 using BitcrackRandomiser.Models;
+using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
@@ -37,7 +38,7 @@ namespace BitcrackRandomiser.Services.PoolService
                 if (appType == AppType.bitcrack)
                 {
                     /// Bitcrack
-                    if (data.Contains("Reached") || data.Contains("No targets remaining"))
+                    if (data.Contains("Reached") || data.Contains("No targets remaining") || data.Contains("Done", StringComparison.OrdinalIgnoreCase))
                     {
                         string finishedMessage = string.Format("[{0}] [Info] {1}", currentDate, "Scan completed.");
                         if (Program.isCloudSearchMode)
