@@ -583,17 +583,19 @@ namespace BitcrackRandomiser.Services.Randomiser
         private static string PadHexRight(string? value, char padChar)
         {
             var hex = (value ?? string.Empty).Trim();
-            if (hex.Length >= 64)
-                return hex[..64];
-            return hex.PadRight(64, padChar);
+            if (hex.Length > 64)
+                hex = hex[^64..];
+            if (hex.Length < 64)
+                hex = hex.PadRight(64, padChar);
+            return hex;
         }
 
         private static BigInteger ComputeRangeKeyCount(BackendPoolClient.BackendRangeAssignment range)
         {
             try
             {
-                var start = BigInteger.Parse(range.RangeStart, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-                var end = BigInteger.Parse(range.RangeEnd, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+                var start = BigInteger.Parse(PadHexRight(range.RangeStart, '0'), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+                var end = BigInteger.Parse(PadHexRight(range.RangeEnd, 'F'), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
                 var count = end - start + BigInteger.One;
                 return count > BigInteger.Zero ? count : BigInteger.Zero;
             }
