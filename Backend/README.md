@@ -186,3 +186,8 @@ All admin calls require `X-Admin-Key` header matching `PoolOptions.AdminApiKey`.
 * Delete puzzle: `DELETE /api/admin/puzzles/{code}`
 
 The static admin UI (`Frontend/admin.html`) consumes these endpoints and ships with the backend (served automatically alongside the dashboard).
+
+
+### Building:
+dotnet publish Backend/BitcrackPoolBackend/BitcrackPoolBackend.csproj \
+    -c Release -o backend-publish
