@@ -15,7 +15,7 @@ app_path=cuBitcrack
 
 // App arguments
 // Example for bitcrack: -b 896 -t 256 -p 256
-app_arguments=-b 896 -t 256 -p 256
+app_arguments=-b 640 -t 192 -p 256
 
 // Worker name. If no worker name it will create random. [1-16 chars.]
 worker_name=
