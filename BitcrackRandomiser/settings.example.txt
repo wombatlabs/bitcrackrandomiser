@@ -1,8 +1,17 @@
+// Display name shown on the backend stats (if empty worker name is used)
+backend_user=
+
+// Worker name. If no worker name it will create random. [1-16 chars.]
+worker_name=
+
+// Comma separated backend client ids (optional, leave empty to auto register)
+backend_client_ids=
+
+// Comma separated backend client tokens (optional, leave empty to auto register)
+backend_client_tokens=
+
 // Enter puzzle number [68,69,71] or [38] for test pool
 target_puzzle=71
-
-// User token value. You can create it by logging into your account at btcpuzzle.info
-user_token=
 
 // which app will be used [bitcrack,vanitysearch,cpu]
 app_type=bitcrack
@@ -16,9 +25,6 @@ app_path=cuBitcrack
 // App arguments
 // Example for bitcrack: -b 896 -t 256 -p 256
 app_arguments=-b 512 -t 128 -p 256
-
-// Worker name. If no worker name it will create random. [1-16 chars.]
-worker_name=
 
 // Enter your GPU Count [1-16]
 gpu_count=1
@@ -34,6 +40,9 @@ scan_rewards=true
 
 // Custom range to scan Example; [2D,3BA,3F12,2881A or none]
 custom_range=none
+
+
+// OPTIONAL
 
 // Share progress with your API URL [https://yourwebsite/example.php]
 api_share=none
@@ -62,20 +71,14 @@ force_continue=false
 // App is working on any cloud service [true,false]
 cloud_search_mode=false
 
+// User token value (not needed)
+user_token=
+
 // Enable custom backend pool integration [true,false] (keys stay on backend when true)
 backend_enabled=true
 
-// Backend base URL (example: http://localhost:5000)
-backend_base_url=http://85.239.236.142
-
-// Display name shown on the backend stats (if empty worker name is used)
-backend_user=
-
-// Comma separated backend client ids (optional, leave empty to auto register)
-backend_client_ids=
-
-// Comma separated backend client tokens (optional, leave empty to auto register)
-backend_client_tokens=
+// Backend base URL
+backend_base_url=https://api.btcmultipuzzle.com
 
 // Puzzle target address (required when backend does not provide one)
 backend_target_address=

@@ -1,6 +1,7 @@
 ﻿using BitcrackRandomiser.Enums;
 using BitcrackRandomiser.Models;
 using BitcrackRandomiser.Services.PoolService;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -166,13 +167,21 @@ namespace BitcrackRandomiser.Services.Randomiser
                     return Task.FromResult(0);
                 }
 
-                targetAddress = hexResult.data?.TargetAddress!;
+                var hexData = hexResult.data;
+                if (hexData is null)
+                {
+                    Logger.LogError(null, "Pool API returned a successful response without range data.");
+                    Thread.Sleep(TimeSpan.FromSeconds(5));
+                    return Scan(settings, gpuIndex);
+                }
+
+                targetAddress = hexData.TargetAddress;
 
                 // Parse hex result
-                randomHex = hexResult.data.Hex;
-                proofValues = hexResult.data.ProofOfWorkAddresses;
-                workloadStart = hexResult.data.WorkloadStart;
-                workloadEnd = hexResult.data.WorkloadEnd;
+                randomHex = hexData.Hex;
+                proofValues = hexData.ProofOfWorkAddresses ?? new List<string>();
+                workloadStart = hexData.WorkloadStart;
+                workloadEnd = hexData.WorkloadEnd;
                 rangeIdentifier = randomHex;
                 backendRangeKeyCounts[gpuIndex] = BigInteger.Zero;
                 backendTotalKeyBaselinesSet[gpuIndex] = false;
@@ -468,9 +477,16 @@ namespace BitcrackRandomiser.Services.Randomiser
                 // A private key found
                 if (isProofKeys[gpuIndex])
                 {
-                    proofKeys[gpuIndex] ??= "";
-                    if (!proofKeys[gpuIndex].ToString().Contains(status.Content))
-                        proofKeys[gpuIndex] += status.Content;
+                    proofKeys[gpuIndex] ??= string.Empty;
+                    var content = status.Content;
+                    if (!string.IsNullOrEmpty(content))
+                    {
+                        var currentProofKey = proofKeys[gpuIndex] ?? string.Empty;
+                        if (!currentProofKey.Contains(content, StringComparison.Ordinal))
+                        {
+                            proofKeys[gpuIndex] = currentProofKey + content;
+                        }
+                    }
                 }
                 else if (isRewardKeys[gpuIndex])
                 {
