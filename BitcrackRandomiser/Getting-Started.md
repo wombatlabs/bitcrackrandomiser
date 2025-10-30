@@ -25,14 +25,24 @@ Endless thanks to everyone involved in the development of Bitcrack and VanitySea
 
 ## Quick start
 
-1 - Download the latest release or build it yourself.
+1. Download the latest release and unzip file or build it yourself.
+Windows - btcmultipool-windows.zip
+Linux - btcmultipool-linux.zip
 
-2 - Download .NET 8.0 runtimes
+2. Download .NET 8.0 runtimes
 Windows - download from [Microsoft](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) (.NET Runtime 8.x.x)
 Linux - install with this prompt `sudo apt-get update && sudo apt-get install dotnet-sdk-8.0 -y`
 
-3 - Edit the <ins>[settings.example.txt](./BitcrackRandomiser/settings.example.txt)</ins> file to suit your machines needs.
+3. Edit the <ins>[settings.txt](./BitcrackRandomiser/settings.txt)</ins> file to suit your machine's needs.
 
-4 - Run the application.
+4. Run the application.
 Windows - Run `BitcrackRandomiser.exe`
 Linux - Run `dotnet BitcrackRandomiser.dll`
+
+### Resuming previous session
+Open up your log file and note the following line:
+```
+Backend credentials for worker####: client_id=SOME_ID | client_token=SOME_TOKEN
+```
+
+In your `setting.txt` file add the `client_id` to `backend_client_ids` and the `client_token` to the `backend_client_tokens` variables and save. Then when you restart your miner your info is remembered. 
