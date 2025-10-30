@@ -250,10 +250,9 @@ namespace BitcrackRandomiser.Services.PoolService
                     ?? throw new InvalidOperationException("Cannot parse backend registration response.");
 
                 Logger.LogInformation($"Registered backend worker [{payload.WorkerName}] with id {registerResponse.ClientId}");
-                Helper.WriteLine(
-                    $"Backend credentials for {payload.WorkerName}: client_id={registerResponse.ClientId} | client_token={registerResponse.ClientToken}",
-                    MessageType.info,
-                    gpuIndex: gpuIndex);
+                var credentialMessage = $"Backend credentials for {payload.WorkerName}: client_id={registerResponse.ClientId} | client_token={registerResponse.ClientToken}";
+                Logger.LogInformation(credentialMessage);
+                Helper.WriteLine(credentialMessage, MessageType.success, gpuIndex: gpuIndex);
 
                 return new RegistrationResult
                 {
