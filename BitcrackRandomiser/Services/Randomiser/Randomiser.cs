@@ -77,6 +77,8 @@ namespace BitcrackRandomiser.Services.Randomiser
                 return Task.FromResult(0);
             }
 
+            scanCompleted[gpuIndex] = false;
+
             BackendPoolClient.BackendRangeAssignment? backendRange = null;
             bool useBackend = settings.IsBackendConfigured;
             string targetAddress;
@@ -406,7 +408,6 @@ namespace BitcrackRandomiser.Services.Randomiser
                 proofKeys[gpuIndex] = "";
                 isProofKeys[gpuIndex] = false;
                 Thread.Sleep(5000);
-                scanCompleted[gpuIndex] = false;
                 Scan(settings, gpuIndex);
             }
         }
