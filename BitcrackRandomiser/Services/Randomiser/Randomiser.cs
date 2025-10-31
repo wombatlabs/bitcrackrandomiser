@@ -449,12 +449,10 @@ namespace BitcrackRandomiser.Services.Randomiser
                     ? Math.Max(status.ProgressPercent.Value, estimatedProgress.Value)
                     : estimatedProgress.Value;
             }
-            if (status.OutputType != OutputType.finished &&
-                status.ProgressPercent.HasValue &&
-                status.ProgressPercent.Value >= 100 &&
-                data.Contains("Progress", StringComparison.OrdinalIgnoreCase))
+            if (status.ProgressPercent.HasValue && status.ProgressPercent.Value >= 100)
             {
                 status.OutputType = OutputType.finished;
+                status.ProgressPercent = 100;
             }
             if (status.OutputType == OutputType.finished)
             {
@@ -592,27 +590,33 @@ namespace BitcrackRandomiser.Services.Randomiser
 
         private static string BuildBackendKeyspace(BackendPoolClient.BackendRangeAssignment range)
         {
-            string start = PadHexRight(range.RangeStart, '0');
-            string end = PadHexRight(range.RangeEnd, 'F');
+            string start = NormalizeRangeValue(range.RangeStart);
+            string end = NormalizeRangeValue(range.RangeEnd);
             return $"{start}:{end}";
         }
 
-        private static string PadHexRight(string? value, char padChar)
+        private static string NormalizeRangeValue(string? value)
         {
             var hex = (value ?? string.Empty).Trim();
-            if (hex.Length > 64)
-                hex = hex[^64..];
-            if (hex.Length < 64)
-                hex = hex.PadRight(64, padChar);
-            return hex;
+            if (hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                hex = hex[2..];
+            if (hex.Length == 0)
+                return "0";
+            return hex.ToUpperInvariant();
+        }
+
+        private static BigInteger ParseHexKey(string? value)
+        {
+            var normalized = NormalizeRangeValue(value);
+            return BigInteger.Parse(normalized, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
         }
 
         private static BigInteger ComputeRangeKeyCount(BackendPoolClient.BackendRangeAssignment range)
         {
             try
             {
-                var start = BigInteger.Parse(PadHexRight(range.RangeStart, '0'), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-                var end = BigInteger.Parse(PadHexRight(range.RangeEnd, 'F'), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+                var start = ParseHexKey(range.RangeStart);
+                var end = ParseHexKey(range.RangeEnd);
                 var count = end - start + BigInteger.One;
                 return count > BigInteger.Zero ? count : BigInteger.Zero;
             }
