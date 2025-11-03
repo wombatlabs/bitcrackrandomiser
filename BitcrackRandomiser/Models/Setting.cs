@@ -32,6 +32,17 @@ namespace BitcrackRandomiser.Models
         /// </summary>
         public string? UserToken { get; set; }
 
+        private string? _bitcoinAddress;
+
+        /// <summary>
+        /// BTC payout address.
+        /// </summary>
+        public string? BitcoinAddress
+        {
+            get => _bitcoinAddress;
+            set => _bitcoinAddress = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
+
         /// <summary>
         /// Worker name
         /// </summary>
@@ -207,7 +218,7 @@ namespace BitcrackRandomiser.Models
             {
                 string buildId = Assembly.GetExecutingAssembly().ManifestModule.ModuleVersionId.ToString();
                 string data = $"{TargetPuzzle}-{AppPath}-{AppArgs}-{WorkerName}-{ApiShare}-{TelegramShare}-" +
-                    $"{TelegramChatId}-{CustomRange}-{UntrustedComputer}-{ForceContinue}-{UserToken}-{BackendEnabled}-{BackendBaseUrl}-{BackendUser}-{BackendTargetAddress}-{BackendClientIdsRaw}-{BackendClientTokensRaw}-{buildId}";
+                    $"{TelegramChatId}-{CustomRange}-{UntrustedComputer}-{ForceContinue}-{UserToken}-{BitcoinAddress}-{BackendEnabled}-{BackendBaseUrl}-{BackendUser}-{BackendTargetAddress}-{BackendClientIdsRaw}-{BackendClientTokensRaw}-{buildId}";
                 return Helper.StringParser(value: Helper.SHA256Hash(data), length: 5, addDots: false);
             }
         }

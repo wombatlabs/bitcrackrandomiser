@@ -4,6 +4,9 @@ backend_user=
 // Worker name. If no worker name it will create random. [1-16 chars.]
 worker_name=
 
+// BTC payout address (required)
+btc_address=
+
 // Comma separated backend client ids (optional, leave empty to auto register)
 backend_client_ids=
 
