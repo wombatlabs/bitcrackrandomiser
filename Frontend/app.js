@@ -63,6 +63,21 @@ function renderSummary(stats) {
     `).join("");
 }
 
+function maskAddress(value) {
+    if (!value) {
+        return "—";
+    }
+
+    const trimmed = String(value).trim();
+    if (trimmed.length <= 10) {
+        return trimmed;
+    }
+
+    const prefix = trimmed.slice(0, 6);
+    const suffix = trimmed.slice(-4);
+    return `${prefix}...${suffix}`;
+}
+
 function renderWorkers(workers) {
     if (!workers || workers.length === 0) {
         workerTableBody.innerHTML = `<tr><td colspan="10" class="empty">No worker data</td></tr>`;
@@ -94,9 +109,11 @@ function renderWorkers(workers) {
         const speed = Number.isFinite(worker.speedKeysPerSecond) ? worker.speedKeysPerSecond : 0;
         const share = totalSpeed > 0 ? (speed / totalSpeed) * 100 : 0;
 
+        const maskedUser = maskAddress(worker.user);
+
         return `
             <tr>
-                <td>${escapeHtml(worker.user)}</td>
+                <td>${escapeHtml(maskedUser)}</td>
                 <td>${escapeHtml(worker.workerName ?? "—")}</td>
                 <td>${escapeHtml(worker.applicationType)}</td>
                 <td>${escapeHtml(worker.puzzleCode || "—")}</td>
@@ -127,7 +144,10 @@ function renderRanges(ranges) {
         return;
     }
 
-    const rows = ranges.map(range => `
+    const rows = ranges.map(range => {
+        const assignedTo = range.assignedTo ? maskAddress(range.assignedTo) : "—";
+
+        return `
         <tr>
             <td>${escapeHtml(range.prefixStart)}</td>
             <td>${escapeHtml(range.prefixEnd)}</td>
@@ -138,10 +158,11 @@ function renderRanges(ranges) {
                 </div>
                 <div>${range.progressPercent.toFixed(1)}%</div>
             </td>
-            <td>${escapeHtml(range.assignedTo ?? "—")}</td>
+            <td>${escapeHtml(assignedTo)}</td>
             <td>${range.lastUpdateUtc ? new Date(range.lastUpdateUtc).toISOString().replace("T", " ").replace("Z", " UTC") : "—"}</td>
         </tr>
-    `).join("");
+    `;
+    }).join("");
 
     rangeTableBody.innerHTML = rows;
     rangeCountEl.textContent = `${ranges.length} in progress`;

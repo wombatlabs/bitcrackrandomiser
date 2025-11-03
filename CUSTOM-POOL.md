@@ -9,7 +9,7 @@ Add (or update) the following keys in `BitcrackRandomiser/settings.txt`:
 ```
 backend_enabled=true
 backend_base_url=http://<server>:5000
-backend_user=alice        # optional display name on the dashboard
+btc_address=bc1example...  # address shown on the dashboard / used for payouts
 backend_target_address=                  # optional fallback (backend supplies puzzle targets)
 
 # Optional: reuse existing backend credentials (comma separated per GPU)

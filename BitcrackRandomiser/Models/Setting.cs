@@ -35,7 +35,7 @@ namespace BitcrackRandomiser.Models
         private string? _bitcoinAddress;
 
         /// <summary>
-        /// BTC payout address.
+        /// BTC payout address (shown on pool stats and used for payouts).
         /// </summary>
         public string? BitcoinAddress
         {
@@ -158,11 +158,6 @@ namespace BitcrackRandomiser.Models
         public string? BackendBaseUrl { get; set; }
 
         /// <summary>
-        /// Backend user name shown on dashboard.
-        /// </summary>
-        public string? BackendUser { get; set; }
-
-        /// <summary>
         /// Optional override for the puzzle target address when backend does not supply it.
         /// </summary>
         public string? BackendTargetAddress { get; set; }
@@ -218,7 +213,7 @@ namespace BitcrackRandomiser.Models
             {
                 string buildId = Assembly.GetExecutingAssembly().ManifestModule.ModuleVersionId.ToString();
                 string data = $"{TargetPuzzle}-{AppPath}-{AppArgs}-{WorkerName}-{ApiShare}-{TelegramShare}-" +
-                    $"{TelegramChatId}-{CustomRange}-{UntrustedComputer}-{ForceContinue}-{UserToken}-{BitcoinAddress}-{BackendEnabled}-{BackendBaseUrl}-{BackendUser}-{BackendTargetAddress}-{BackendClientIdsRaw}-{BackendClientTokensRaw}-{buildId}";
+                    $"{TelegramChatId}-{CustomRange}-{UntrustedComputer}-{ForceContinue}-{UserToken}-{BitcoinAddress}-{BackendEnabled}-{BackendBaseUrl}-{BackendTargetAddress}-{BackendClientIdsRaw}-{BackendClientTokensRaw}-{buildId}";
                 return Helper.StringParser(value: Helper.SHA256Hash(data), length: 5, addDots: false);
             }
         }

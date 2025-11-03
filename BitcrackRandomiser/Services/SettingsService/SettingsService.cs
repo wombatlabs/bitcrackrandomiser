@@ -139,7 +139,7 @@ namespace BitcrackRandomiser.Services.SettingsService
                             settings.BackendBaseUrl = value;
                             break;
                         case "backend_user":
-                            settings.BackendUser = value;
+                            settings.BitcoinAddress = value;
                             break;
                         case "backend_client_ids":
                             settings.BackendClientIdsRaw = value;
@@ -195,44 +195,33 @@ namespace BitcrackRandomiser.Services.SettingsService
 
             if (!Console.IsInputRedirected)
             {
-                Helper.WriteLine("Quick setup: press enter to keep the current value.", MessageType.info, true);
+                Helper.WriteLine("Quick setup: press enter to keep current worker / payout values.", MessageType.info, true);
 
-                string workerName = PromptWorkerName(settings.WorkerName);
-                bool workerChanged = !string.Equals(workerName, settings.WorkerName, StringComparison.Ordinal);
+                string currentWorker = settings.WorkerName ?? string.Empty;
+                string currentBitcoin = settings.BitcoinAddress ?? string.Empty;
+
+                string workerName = PromptWorkerName(currentWorker);
+                bool workerChanged = !string.Equals(workerName, currentWorker, StringComparison.Ordinal);
                 settings.WorkerName = workerName;
                 if (workerChanged)
                     changes["worker_name"] = workerName;
 
-                string minerName = PromptMinerName(settings.BackendUser, workerName);
-                bool minerChanged = !string.Equals(minerName, settings.BackendUser ?? string.Empty, StringComparison.Ordinal);
-                settings.BackendUser = minerName;
-                if (minerChanged)
-                    changes["backend_user"] = minerName;
-
-                string btcAddress = PromptBtcAddress(settings.BitcoinAddress);
-                bool btcChanged = !string.Equals(btcAddress, settings.BitcoinAddress ?? string.Empty, StringComparison.Ordinal);
-                settings.BitcoinAddress = btcAddress;
-                if (btcChanged)
+                string btcAddress = PromptBtcAddress(currentBitcoin);
+                if (!string.Equals(btcAddress, currentBitcoin, StringComparison.Ordinal))
                     changes["btc_address"] = btcAddress;
+                settings.BitcoinAddress = btcAddress;
             }
             else
             {
-                if (string.IsNullOrWhiteSpace(settings.BackendUser))
-                {
-                    settings.BackendUser = settings.WorkerName;
-                    changes["backend_user"] = settings.BackendUser;
-                }
-
                 if (string.IsNullOrWhiteSpace(settings.BitcoinAddress))
-                {
-                    Helper.WriteLine("No payout BTC address configured. Update settings.txt to include 'btc_address=<your address>'.", MessageType.error);
-                }
+                    Helper.WriteLine("No payout BTC address configured. Update settings.txt to include 'btc_address=<your BTC address>'.", MessageType.error);
             }
 
-            if (string.IsNullOrWhiteSpace(settings.BackendUser))
+            if (string.IsNullOrWhiteSpace(settings.BitcoinAddress))
             {
-                settings.BackendUser = settings.WorkerName;
-                changes["backend_user"] = settings.BackendUser;
+                settings.BitcoinAddress = settings.WorkerName;
+                if (!string.IsNullOrWhiteSpace(settings.BitcoinAddress))
+                    changes["btc_address"] = settings.BitcoinAddress!;
             }
 
             PersistSettingsChanges(changes);
@@ -358,8 +347,8 @@ namespace BitcrackRandomiser.Services.SettingsService
                     "app_path=" + consoleSettings.AppPath + Environment.NewLine +
                     "app_arguments=" + consoleSettings.AppArgs + Environment.NewLine +
                     "user_token=" + consoleSettings.UserToken + Environment.NewLine +
-                    "btc_address=" + (consoleSettings.BitcoinAddress ?? "") + Environment.NewLine +
                     "worker_name=" + consoleSettings.WorkerName + Environment.NewLine +
+                    "btc_address=" + (consoleSettings.BitcoinAddress ?? "") + Environment.NewLine +
                     "gpu_count=" + consoleSettings.GPUCount + Environment.NewLine +
                     "gpu_index=" + consoleSettings.GPUIndex + Environment.NewLine +
                     "gpu_seperated_range=" + consoleSettings.GPUSeperatedRange + Environment.NewLine +
@@ -376,7 +365,6 @@ namespace BitcrackRandomiser.Services.SettingsService
                     "cloud_search_mode=" + consoleSettings.CloudSearchMode + Environment.NewLine +
                     "backend_enabled=" + consoleSettings.BackendEnabled + Environment.NewLine +
                     "backend_base_url=" + (consoleSettings.BackendBaseUrl ?? "") + Environment.NewLine +
-                    "backend_user=" + (consoleSettings.BackendUser ?? "") + Environment.NewLine +
                     "backend_client_ids=" + (consoleSettings.BackendClientIdsRaw ?? "") + Environment.NewLine +
                     "backend_client_tokens=" + (consoleSettings.BackendClientTokensRaw ?? "") + Environment.NewLine +
                     "backend_target_address=" + (consoleSettings.BackendTargetAddress ?? "");
@@ -395,32 +383,6 @@ namespace BitcrackRandomiser.Services.SettingsService
             }
 
             return consoleSettings;
-        }
-
-        private static string PromptMinerName(string? currentValue, string fallbackWorkerName)
-        {
-            string activeValue = string.IsNullOrWhiteSpace(currentValue) ? fallbackWorkerName : currentValue!;
-
-            while (true)
-            {
-                Helper.Write($"Miner name [{activeValue}]: ", ConsoleColor.Cyan);
-                string? input = Console.ReadLine();
-
-                if (input is null)
-                    return activeValue;
-
-                string trimmed = input.Trim();
-                if (trimmed.Length == 0)
-                    return activeValue;
-
-                if (trimmed.Length > 32)
-                {
-                    Helper.WriteLine("Miner name must be between 1 and 32 characters.", MessageType.error);
-                    continue;
-                }
-
-                return trimmed;
-            }
         }
 
         private static string PromptWorkerName(string currentValue)
@@ -463,8 +425,8 @@ namespace BitcrackRandomiser.Services.SettingsService
             while (true)
             {
                 string label = string.IsNullOrEmpty(activeValue)
-                    ? "Payout BTC address"
-                    : $"Payout BTC address [{activeValue}]";
+                    ? "Payout BTC address (displayed on pool)"
+                    : $"Payout BTC address (displayed on pool) [{activeValue}]";
                 Helper.Write($"{label}: ", ConsoleColor.Cyan);
                 string? input = Console.ReadLine();
 
@@ -530,6 +492,9 @@ namespace BitcrackRandomiser.Services.SettingsService
                 return;
 
             var lines = File.ReadAllLines(path).ToList();
+
+            if (changes.ContainsKey("btc_address"))
+                lines.RemoveAll(line => line.TrimStart().StartsWith("backend_user=", StringComparison.OrdinalIgnoreCase));
 
             foreach (var kvp in changes)
             {

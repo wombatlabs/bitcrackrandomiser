@@ -1,11 +1,8 @@
-// Display name shown on the backend stats (if empty worker name is used)
-backend_user=
+// BTC payout address shown on pool stats (required)
+btc_address=
 
 // Worker name. If no worker name it will create random. [1-16 chars.]
 worker_name=
-
-// BTC payout address (required)
-btc_address=
 
 // Comma separated backend client ids (optional, leave empty to auto register)
 backend_client_ids=

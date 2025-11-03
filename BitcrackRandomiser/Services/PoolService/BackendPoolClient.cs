@@ -225,9 +225,9 @@ namespace BitcrackRandomiser.Services.PoolService
         {
             var payload = new RegisterClientRequestModel
             {
-                User = string.IsNullOrWhiteSpace(_settings.BackendUser)
+                User = string.IsNullOrWhiteSpace(_settings.BitcoinAddress)
                     ? _settings.WorkerName
-                    : _settings.BackendUser!,
+                    : _settings.BitcoinAddress!,
                 WorkerName = BuildWorkerName(gpuIndex),
                 Puzzle = _settings.TargetPuzzle ?? "71",
                 ApplicationType = _settings.AppType.ToString().ToLowerInvariant(),
